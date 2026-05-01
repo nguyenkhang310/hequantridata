@@ -32,21 +32,75 @@ sql/
 
 ```mermaid
 erDiagram
-    GiaoVien { varchar MaGV PK; varchar HoTen; varchar KhoaBoMon; varchar HocVi; varchar MatKhau }
-    SinhVien  { varchar MaSV PK; varchar HoTen; varchar Lop; varchar KhoaHoc; varchar MatKhau }
-    MonHoc    { varchar MaMH PK; varchar TenMH; int SoTinChi; int SoTietLT; int SoTietTH }
-    HocPhan   { varchar MaHP PK; varchar MaMH FK; varchar MaGV FK; tinyint HocKy; varchar NamHoc; int SiSoToiDa; int SiSoHienTai; enum TrangThai }
-    LichHoc   { int MaLich PK; varchar MaHP FK; enum Thu; tinyint TietBD; tinyint TietKT; varchar Phong }
-    DangKyHocPhan { int MaDK PK; varchar MaSV FK; varchar MaHP FK; datetime NgayDK; enum TrangThai }
-    BangDiem  { int MaBD PK; int MaDK FK; decimal DiemCC; decimal DiemGiuaKy; decimal DiemCuoiKy; decimal DiemTB; varchar XepLoai }
-    LogHoatDong { int MaLog PK; varchar MaNguoiDung; enum VaiTro; varchar HanhDong; datetime ThoiGian }
+    GiaoVien {
+        varchar MaGV PK
+        varchar HoTen
+        varchar KhoaBoMon
+        varchar HocVi
+        varchar MatKhau
+    }
+    SinhVien {
+        varchar MaSV PK
+        varchar HoTen
+        varchar Lop
+        varchar KhoaHoc
+        varchar MatKhau
+    }
+    MonHoc {
+        varchar MaMH PK
+        varchar TenMH
+        int SoTinChi
+        int SoTietLT
+        int SoTietTH
+    }
+    HocPhan {
+        varchar MaHP PK
+        varchar MaMH FK
+        varchar MaGV FK
+        tinyint HocKy
+        varchar NamHoc
+        int SiSoToiDa
+        int SiSoHienTai
+        enum TrangThai
+    }
+    LichHoc {
+        int MaLich PK
+        varchar MaHP FK
+        enum Thu
+        tinyint TietBD
+        tinyint TietKT
+        varchar Phong
+    }
+    DangKyHocPhan {
+        int MaDK PK
+        varchar MaSV FK
+        varchar MaHP FK
+        datetime NgayDK
+        enum TrangThai
+    }
+    BangDiem {
+        int MaBD PK
+        int MaDK FK
+        decimal DiemCC
+        decimal DiemGiuaKy
+        decimal DiemCuoiKy
+        decimal DiemTB
+        varchar XepLoai
+    }
+    LogHoatDong {
+        int MaLog PK
+        varchar MaNguoiDung
+        enum VaiTro
+        varchar HanhDong
+        datetime ThoiGian
+    }
 
-    GiaoVien ||--o{ HocPhan : "giảng dạy"
-    MonHoc   ||--o{ HocPhan : "thuộc về"
-    HocPhan  ||--o{ LichHoc : "có lịch"
-    SinhVien ||--o{ DangKyHocPhan : "đăng ký"
-    HocPhan  ||--o{ DangKyHocPhan : "được đăng ký"
-    DangKyHocPhan ||--o| BangDiem : "có điểm"
+    GiaoVien ||--o{ HocPhan : "giang_day"
+    MonHoc   ||--o{ HocPhan : "thuoc_ve"
+    HocPhan  ||--o{ LichHoc : "co_lich"
+    SinhVien ||--o{ DangKyHocPhan : "dang_ky"
+    HocPhan  ||--o{ DangKyHocPhan : "duoc_dang_ky"
+    DangKyHocPhan ||--o| BangDiem : "co_diem"
 ```
 
 ---

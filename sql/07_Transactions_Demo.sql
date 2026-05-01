@@ -7,6 +7,9 @@
 
 USE QuanLyDKHP;
 
+-- Tắt safe update mode để các lệnh UPDATE/DELETE không bị chặn
+SET SQL_SAFE_UPDATES = 0;
+
 -- ============================================================
 -- CHUẨN BỊ: Tạo bảng test riêng để demo an toàn
 -- ============================================================
@@ -172,14 +175,14 @@ CREATE TABLE Demo_DangKy (
     MaHP    VARCHAR(10)
 ) ENGINE=InnoDB;
 
--- Thêm 30 dòng mẫu
+-- Thêm 30 dòng mẫu (dùng WITH RECURSIVE tương thích MySQL 8+)
 INSERT INTO Demo_DangKy (MaSV, MaHP)
-SELECT CONCAT('SV', LPAD(n, 3, '0')), 'HP001'
-FROM (
-    SELECT @rownum := @rownum + 1 AS n
-    FROM information_schema.columns, (SELECT @rownum := 0) r
-    LIMIT 30
-) nums;
+WITH RECURSIVE nums AS (
+    SELECT 1 AS n
+    UNION ALL
+    SELECT n + 1 FROM nums WHERE n < 30
+)
+SELECT CONCAT('SV', LPAD(n, 3, '0')), 'HP001' FROM nums;
 
 -- SESSION A: Đọc lần 1
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED; -- Dễ tái hiện phantom
@@ -299,3 +302,6 @@ FROM (
 ) t;
 
 SELECT '7 file SQL đã hoàn thành! Chạy theo thứ tự 01 -> 07.' AS ThongBao;
+
+-- Bật lại safe update mode
+SET SQL_SAFE_UPDATES = 1;

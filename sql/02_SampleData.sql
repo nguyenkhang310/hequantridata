@@ -141,11 +141,14 @@ INSERT INTO DangKyHocPhan (MaSV, MaHP, TrangThai) VALUES
 ('SV015', 'HP011', 'DaDuyet');
 
 -- Cập nhật sĩ số hiện tại theo dữ liệu đã insert
+-- (Tắt safe update mode tạm thời để UPDATE toàn bảng)
+SET SQL_SAFE_UPDATES = 0;
 UPDATE HocPhan hp
 SET SiSoHienTai = (
     SELECT COUNT(*) FROM DangKyHocPhan dk
     WHERE dk.MaHP = hp.MaHP AND dk.TrangThai = 'DaDuyet'
 );
+SET SQL_SAFE_UPDATES = 1;
 
 -- ============================================================
 -- DỮ LIỆU: BangDiem (điểm cho các sinh viên đã hoàn thành)

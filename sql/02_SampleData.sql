@@ -1,9 +1,24 @@
 -- ============================================================
 -- FILE: 02_SampleData.sql
 -- MỤC ĐÍCH: Chèn dữ liệu mẫu đầy đủ để test hệ thống
+-- Có thể chạy lại nhiều lần mà không bị lỗi duplicate
 -- ============================================================
 
 USE QuanLyDKHP;
+
+-- Xóa dữ liệu cũ để tránh lỗi Duplicate Entry khi chạy lại
+-- Tắt FK để TRUNCATE không bị chặn bởi ràng buộc
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE BangDiem;
+TRUNCATE TABLE LogHoatDong;
+TRUNCATE TABLE DangKyHocPhan;
+TRUNCATE TABLE LichHoc;
+TRUNCATE TABLE HocPhan;
+TRUNCATE TABLE MonHoc;
+TRUNCATE TABLE SinhVien;
+TRUNCATE TABLE GiaoVien;
+SET FOREIGN_KEY_CHECKS = 1;
+SELECT 'Đã xóa dữ liệu cũ, bắt đầu insert mới...' AS ThongBao;
 
 -- ============================================================
 -- DỮ LIỆU: GiaoVien (10 giáo viên)

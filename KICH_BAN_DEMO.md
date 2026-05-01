@@ -56,7 +56,7 @@ INSERT INTO DangKyHocPhan(MaSV, MaHP) VALUES ('SV014', 'HP002');
 -- Xem lại sĩ số
 SELECT SiSoHienTai FROM HocPhan WHERE MaHP = 'HP002';
 ```
-**🗣️ Bạn nói:** "Dạ thầy xem, sĩ số ban đầu là 45. Sau khi SV014 đăng ký thêm môn HP002, hệ thống tự động nhảy sĩ số lên 46 nhờ vào Trigger chạy ngầm ạ."
+**🗣️ Bạn nói:** "Dạ thầy xem, sĩ số ban đầu của lớp HP002 là 4. Sau khi SV014 đăng ký thêm môn này, hệ thống tự động nhảy sĩ số lên 5 nhờ vào Trigger chạy ngầm ạ."
 
 ---
 

@@ -1,6 +1,5 @@
 # KỊCH BẢN THUYẾT TRÌNH BẢO VỆ ĐỒ ÁN MÔN HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU
-
-*Tài liệu này là "phao cứu sinh" cầm tay khi lên thuyết trình. Bạn có thể mở file này ở một bên màn hình, và MySQL Workbench ở một bên màn hình.*
+*(Tài liệu này bao gồm toàn bộ kịch bản demo và mô tả chi tiết 5 lỗi Transaction để phục vụ làm Báo Cáo Đồ ÁN)*
 
 ---
 
@@ -10,7 +9,7 @@
 **🗣️ Bạn nói:**
 "Dạ thưa thầy, đề tài của nhóm em là **Hệ thống Quản lý Đăng ký Học phần của Sinh viên**. Để dễ quản lý code và bàn giao, nhóm em đã tách rời Database thành **6 file script riêng biệt**, chạy lần lượt từ 01 đến 06."
 
-**🗣️ Giải thích chi tiết 6 file (Bạn đọc trôi chảy phần này là thầy đánh giá rất cao):**
+**🗣️ Giải thích chi tiết 6 file (Nội dung dùng để ghi vào Báo cáo):**
 
 1. **File `01_CreateDatabase.sql`:** 
    "Dạ file này dùng để khởi tạo Database mới hoàn toàn. Hệ thống của em có **8 bảng** (SinhVien, GiaoVien, MonHoc, HocPhan, LichHoc, DangKyHocPhan, BangDiem, LogHoatDong). Bảng trung tâm là **DangKyHocPhan**, liên kết N-N giữa Sinh Viên và Học Phần. File này em cũng cấu hình sẵn các khóa chính (Primary Key) và khóa ngoại (Foreign Key) để đảm bảo không bị rác dữ liệu."
@@ -60,21 +59,51 @@ SELECT SiSoHienTai FROM HocPhan WHERE MaHP = 'HP002';
 
 ---
 
-## PHẦN 3: DEMO TRANSACTION (BƯỚC ĂN ĐIỂM 10)
-*(Thầy hỏi: "Thế phần quản lý giao dịch đồng thời (Concurrency) nhóm xử lý sao?")*
+## PHẦN 3: KỊCH BẢN DEMO & BÁO CÁO 5 LỖI TRANSACTION (BƯỚC ĂN ĐIỂM 10)
 
-**🗣️ Bạn nói:** "Dạ, để demo tính huống nhiều người truy cập cùng lúc, em đã chuẩn bị sẵn các file script nhỏ. Em xin phép demo lỗi **Lost Update (Mất dữ liệu cập nhật)** khi 2 sinh viên tranh nhau một chỗ học cuối cùng."
+*(Đây là phần để bạn đưa vào BÁO CÁO GIỮA KỲ/CUỐI KỲ và đọc lúc thuyết trình tùy theo yêu cầu của Giảng viên)*
 
-**💻 Hành động:**
-Bạn mở file `sql/demo/Loi1_LostUpdate.sql` và nhấn nút Tia Sét (Execute All). Nó hiện ra 4 tab.
+### 🚀 3.1. LỖI 1: LOST UPDATE (MẤT DỮ LIỆU CẬP NHẬT)
+**💻 Cách Demo:** Mở file `sql/demo/Loi1_LostUpdate.sql` và nhấn nút Tia Sét (Execute All). Nó hiện ra 4 tab.
+*   **(Click Tab 1):** "Dạ thưa thầy, xét tình huống khóa học ban đầu có 30 lượt đăng ký."
+*   **(Click Tab 2):** "Giả sử Sinh viên A và Sinh viên B cùng lúc bấm đăng ký. Cả 2 giao dịch đều đọc giá trị là 30 và tự tính lên 31 trên máy cá nhân."
+*   **(Click Tab 3):** "Nhưng do hệ thống không có cơ chế khóa, Transaction B chạy sau đã lưu đè kết quả lên Transaction A. Kết quả cuối cùng DB chỉ ghi nhận sĩ số là 31 (Mất đi 1 lượt đăng ký của A). Đây gọi là lỗi Lost Update."
+*   **(Click Tab 4):** "Cách khắc phục của nhóm em là khóa dòng dữ liệu lại bằng `FOR UPDATE` (Pessimistic Locking) và yêu cầu Database dùng phép toán cập nhật trực tiếp `UPDATE SiSo = SiSo + 1`. Kết quả giờ đã lên đúng 32 ạ."
 
-**🗣️ Bạn đọc theo 4 tab hiện ra:**
-1. **(Click Tab 1):** "Dạ sĩ số lớp ban đầu đang là 30."
-2. **(Click Tab 2):** "Có 2 giao dịch của sinh viên A và B cùng đọc lên con số 30 và tự tính lên thành 31."
-3. **(Click Tab 3):** "Nhưng vì không có cơ chế khóa (Lock), thằng B chạy sau đã lưu đè lên thằng A. Kết quả sĩ số chỉ là 31, bị mất đi 1 lượt đăng ký thực tế."
-4. **(Click Tab 4):** "Để khắc phục, nhóm em đã khóa dòng dữ liệu lại, và yêu cầu Database dùng phép toán cập nhật trực tiếp. Thầy thấy kết quả hiện giờ đã lên chuẩn 32 rồi ạ."
+### 🚀 3.2. LỖI 2: DIRTY READ (ĐỌC DỮ LIỆU BẨN)
+**💻 Cách Demo:** Mở file `sql/demo/Loi2_DirtyRead.sql` và nhấn nút Tia Sét (Execute All).
+*   **(Click Tab 1):** "Dạ thưa thầy, xét điểm thi ban đầu của SV001 là 7.50."
+*   **(Click Tab 2):** "Giáo viên A vào sửa điểm thành 9.0 nhưng **chưa bấm Lưu (Chưa COMMIT)**."
+*   **(Click Tab 3):** "Lúc này, nếu sinh viên B truy cập với mức cô lập `READ UNCOMMITTED`, hệ thống sẽ cho sinh viên B thấy điểm 9.0 (Đây là dữ liệu rác, chưa được xác nhận)."
+*   **(Click Tab 4):** "Giáo viên A thấy sửa nhầm nên bấm Hủy (ROLLBACK), điểm quay về 7.50. Tức là sinh viên B vừa đọc một dữ liệu không hề tồn tại. Đây là lỗi Dirty Read."
+*   **(Click Tab 5):** "Cách Fix: Nhóm em nâng mức cô lập lên `READ COMMITTED`. Khi đó, mọi giao dịch chỉ được phép đọc dữ liệu đã được COMMIT. Giao dịch rác sẽ bị ẩn đi hoàn toàn."
+
+### 🚀 3.3. LỖI 3: NON-REPEATABLE READ (ĐỌC KHÔNG LẶP LẠI ĐƯỢC)
+**💻 Cách Demo:** Mở file `sql/demo/Loi3_NonRepeatableRead.sql` và nhấn nút Tia Sét (Execute All).
+*   **(Click Tab 1):** "Lỗi này xảy ra khi ở mức cô lập `READ COMMITTED`."
+*   **(Click Tab 2):** "Trong cùng 1 thao tác thống kê (Transaction A), lần đọc thứ 1 điểm của sinh viên là 7.50."
+*   **(Click Tab 3):** "Trong lúc hệ thống A đang chạy chưa xong, Giáo viên B vào cập nhật điểm thành 9.0 và COMMIT thành công."
+*   **(Click Tab 4):** "Khi Transaction A đọc lại lần thứ 2, điểm đột nhiên biến thành 9.0. Nghĩa là trong cùng 1 báo cáo, cùng 1 người mà điểm lúc đầu 7.5, lúc sau 9.0 gây sai lệch số liệu. Đây gọi là Non-repeatable Read."
+*   **(Click Tab 5):** "Cách Fix: Nhóm em dùng chuẩn mặc định của InnoDB là `REPEATABLE READ`. Hệ thống sẽ chụp một bức ảnh (Snapshot) tại thời điểm bắt đầu. Dù ai có sửa đổi, thì trong suốt quá trình báo cáo, hệ thống A vẫn thấy giá trị 7.50 nguyên vẹn."
+
+### 🚀 3.4. LỖI 4: PHANTOM READ (ĐỌC THẤY "BÓNG MA")
+**💻 Cách Demo:** Mở file `sql/demo/Loi4_PhantomRead.sql` và nhấn nút Tia Sét (Execute All).
+*   **(Click Tab 1):** "Dạ thưa thầy, giả sử em đang chạy lệnh đếm số lượng sinh viên đăng ký lớp HP001. Lần 1 em đếm được 30 người."
+*   **(Click Tab 2):** "Lúc này một sinh viên mới bấm nút đăng ký thành công (INSERT dữ liệu mới)."
+*   **(Click Tab 3):** "Đến cuối báo cáo, em đếm lại lần nữa thì đột nhiên lòi ra 31 người. Có một dòng dữ liệu 'bóng ma' xuất hiện từ hư không làm sai lệch thuật toán. Đây là Phantom Read (Khác với lỗi 3 là UPDATE, lỗi 4 này là do INSERT)."
+*   **(Click Tab 4):** "Cách Fix: Nhóm dùng cấp độ cao nhất là `SERIALIZABLE`. Nó sẽ tạo ra cơ chế khóa phạm vi (Range Lock). Nghĩa là khi quản trị viên đang đếm, mọi hành vi INSERT vào lớp HP001 sẽ bị treo lại chờ đếm xong mới được chạy."
+
+### 🚀 3.5. LỖI 5: DEADLOCK (BẾ TẮC KHÓA)
+**💻 Cách Demo:** (PHẢI MỞ 2 TAB QUERY SONG SONG) - Hướng dẫn chi tiết đã có trong file `sql/demo/Loi5_Deadlock.sql`.
+*   **(Giải thích cho báo cáo):** "Deadlock là tình huống 2 người dùng khóa chéo tài nguyên của nhau. Ví dụ: Sinh viên A khóa môn Toán chờ đăng ký môn Lý. Sinh viên B khóa môn Lý chờ đăng ký môn Toán."
+*   **(Kịch bản demo):** 
+    *   Thực hiện chạy Bước 1 bên Tab A (Khóa HP001).
+    *   Thực hiện chạy Bước 2 bên Tab B (Khóa HP002).
+    *   Quay lại Tab A đòi khóa HP002 (Bị đứng vì B đang giữ).
+    *   Quay lại Tab B đòi khóa HP001.
+*   **(Kết quả):** "Dạ thầy xem, khi cả 2 bên bế tắc, cơ chế phát hiện Deadlock của MySQL sẽ nhảy vào, 'giết' (Rollback) một trong hai giao dịch và trả về lỗi `Error 1213: Deadlock found`. Transaction còn lại sẽ được đi tiếp."
+*   **(Cách Fix chốt hạ):** "Để chống Deadlock, khi lập trình mã nguồn Backend, nhóm em quy định toàn bộ truy vấn phải luôn khóa bảng theo một thứ tự cố định (Ví dụ luôn khóa HP001 trước HP002). Hoặc lập trình thêm hàm `try-catch` để retry lại transaction khi bị hệ thống văng lỗi 1213 ạ."
 
 ---
-*Lưu ý: Nếu thầy bắt demo các lỗi khác như Dirty Read hay Deadlock, bạn chỉ việc mở file Loi2, Loi3... tương ứng trong thư mục `sql/demo/` ra chạy và đọc y hệt những giải thích tiếng Việt mà hệ thống in ra trên màn hình.*
-
-Chúc bạn lên bảng thật tự tin! Đọc trôi chảy kịch bản này là đảm bảo điểm A+!
+🎉 **HOÀN THÀNH KỊCH BẢN**
+*Bạn chỉ cần chép toàn bộ phần từ 3.1 đến 3.5 này vào file Word làm báo cáo nộp cho Giảng viên là đảm bảo nội dung cực kỳ khoa học và chuẩn điểm A+.*

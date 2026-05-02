@@ -1,0 +1,18 @@
+# ============================================================
+# PYTHON REQUIREMENTS - UTH Portal
+# Cach cai: pip install -r requirements.txt
+# ============================================================
+
+# Backend API (Flask Web Server)
+Flask==3.0.3
+Flask-Cors==4.0.0
+mysql-connector-python==8.2.0
+
+# Desktop Launcher (hien thi web trong cua so Desktop)
+pywebview==6.2.1
+
+# ============================================================
+# PHIEN BAN GIAO DIEN CU (old_desktop_version/app.py)
+# Bo comment dong duoi neu muon chay giao dien Desktop Tkinter:
+# customtkinter
+# ============================================================

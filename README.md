@@ -66,19 +66,19 @@ graph TD
 
 ---
 
-## 3. CẤU TRÚC THƯ MỤC VÀ TẬP TIN DATABASE
+## 3. CẤU TRÚC THƯ MỤC VÀ TẬP TIN DATABASE (6 SCRIPT KHỞI TẠO)
 
-Hệ thống cơ sở dữ liệu được thiết kế chặt chẽ và chia thành 6 tệp lệnh SQL riêng biệt để dễ dàng quản lý và triển khai. Dưới đây là mô tả chi tiết công dụng của từng tệp:
+Hệ thống cơ sở dữ liệu được thiết kế chặt chẽ và chia thành 6 tệp lệnh SQL riêng biệt để dễ dàng quản lý và triển khai. Dưới đây là bảng tóm tắt cấu trúc:
 
-| Tên tập tin | Vai trò và Nội dung chi tiết |
-|---|---|
-| **01_CreateDatabase.sql** | Khởi tạo cấu trúc nền tảng. Chứa lệnh tạo Database `QuanLyDKHP` và định nghĩa cấu trúc 8 bảng thực thể (SinhVien, GiaoVien, MonHoc, HocPhan, LichHoc, DangKyHocPhan, BangDiem, LogHoatDong). Thiết lập chặt chẽ các khóa chính (Primary Key), khóa ngoại (Foreign Key) và các ràng buộc toàn vẹn (Constraints). |
-| **02_SampleData.sql** | Nạp dữ liệu mẫu quy mô lớn. Lệnh tự động thêm 500 Sinh viên, 20 Giảng viên, 20 Môn học, 50 Học phần và 2.758 bản ghi đăng ký học phần kèm điểm số. Phục vụ việc kiểm thử khả năng chịu tải và tính đúng đắn của thuật toán tính điểm. |
-| **03_Functions.sql** | Định nghĩa các hàm xử lý vô hướng (Scalar Functions). Nổi bật gồm: `f_TinhGPA` (Tự động tính điểm trung bình tích lũy theo trọng số tín chỉ) và `f_XepLoaiHocLuc` (Phân loại học lực Xuất sắc/Giỏi/Khá/TB dựa trên mức điểm GPA quy đổi). |
-| **04_StoredProcedures.sql** | Chứa các thủ tục lưu trữ thực thi logic nghiệp vụ lõi (hơn 10 thủ tục). Đảm nhận các tác vụ phức tạp như: `sp_DangNhap` (Xác thực thông tin bằng mật khẩu băm SHA256), `sp_DangKyHocPhan` (Kiểm tra điều kiện tiên quyết, giới hạn tín chỉ), và `sp_CapNhatDiem`. |
-| **05_Triggers.sql** | Chứa các bẫy sự kiện tự động (Automated Triggers). Bao gồm: `trg_DangKyHocPhan_AfterInsert` (Tự động cộng sĩ số lớp khi có đăng ký mới), `trg_DangKyHocPhan_AfterDelete` (Giảm sĩ số khi hủy học phần), và `trg_KiemTraTrungLichHoc` (Phát hiện và hủy bỏ giao dịch nếu sinh viên đăng ký môn học có lịch trùng với môn đang học). |
-| **06_Views.sql** | Định nghĩa các khung nhìn (Views) phục vụ trích xuất báo cáo nhanh. Tối ưu hóa hiệu suất bằng cách cấu trúc sẵn các lệnh JOIN phức tạp. Nổi bật gồm `v_ThoiKhoaBieu_SinhVien` và `v_BangDiem_SinhVien`. |
-| **demo/ (Thư mục)** | Chứa 5 kịch bản SQL độc lập nhằm giả lập các lỗi đồng thời (Concurrency Transactions) thường gặp trong hệ quản trị CSDL (Lost Update, Dirty Read, Non-Repeatable Read, Phantom Read, Deadlock) và cung cấp mã lệnh khắc phục thông qua cơ chế Lock và Transaction Isolation Levels. |
+| STT | Tên tập tin | Vai trò và Nội dung chi tiết |
+|:---:|-------------|------------------------------|
+| 1 | `01_CreateDatabase.sql` | **Khởi tạo cấu trúc nền tảng:** Chứa lệnh tạo Database `QuanLyDKHP` và định nghĩa cấu trúc 8 bảng thực thể. Thiết lập chặt chẽ PK, FK và các Constraint. |
+| 2 | `02_SampleData.sql` | **Nạp dữ liệu mẫu:** Thêm 500 SV, 20 GV, 20 Môn học, 50 Học phần và 2.758 bản ghi đăng ký kèm điểm. (Sử dụng `SET FOREIGN_KEY_CHECKS = 0` để tối ưu Bulk Insert). |
+| 3 | `03_Functions.sql` | **Hàm vô hướng (Scalar Functions):** Định nghĩa các hàm tính toán như `f_TinhGPA` và `f_XepLoaiHocLuc`. |
+| 4 | `04_StoredProcedures.sql`| **Thủ tục lưu trữ (Stored Procedures):** Đóng gói logic nghiệp vụ CRUD, bao gồm đăng nhập, đăng ký học phần, cập nhật điểm... |
+| 5 | `05_Triggers.sql` | **Bẫy sự kiện (Triggers):** Tự động hóa cập nhật sĩ số, kiểm tra điều kiện trùng lịch, bảo vệ xóa dữ liệu và ghi log (Audit). |
+| 6 | `06_Views.sql` | **Khung nhìn (Views):** Tổng hợp dữ liệu báo cáo đa chiều (Bảng điểm, Lịch học, Xếp hạng GPA...) tối ưu hóa truy vấn JOIN. |
+| * | `demo/` (Thư mục) | Chứa 5 kịch bản SQL độc lập nhằm giả lập các lỗi đồng thời (Concurrency) và mã lệnh khắc phục. |
 
 ---
 
@@ -258,14 +258,100 @@ Dưới đây là chi tiết cấu trúc của 8 bảng dữ liệu trong hệ t
 
 ---
 
-## 6. HƯỚNG DẪN CÀI ĐẶT VÀ VẬN HÀNH
+## 6. DANH SÁCH 10 THỦ TỤC LƯU TRỮ (STORED PROCEDURES)
 
-### 6.1. Yêu cầu hệ thống tối thiểu
+Hệ thống đóng gói toàn bộ logic nghiệp vụ (Business Logic) xuống cơ sở dữ liệu thông qua 10 Stored Procedures, giúp tăng tính bảo mật và hiệu năng xử lý:
+
+| STT | Tên thủ tục (Stored Procedure) | Phân quyền | Chức năng chính |
+|:---:|--------------------------------|------------|-----------------|
+| 1 | `sp_DangNhap` | SV / GV | Xác thực đăng nhập sinh viên hoặc giáo viên (Băm mật khẩu SHA256) |
+| 2 | `sp_DangKyHocPhan` | SinhVien | Đăng ký học phần - kiểm tra điều kiện tiên quyết, trùng lịch, giới hạn tín chỉ |
+| 3 | `sp_HuyDangKyHocPhan` | SinhVien | Hủy đăng ký học phần, cập nhật lại trạng thái |
+| 4 | `sp_XemDanhSachHocPhan` | Chung | Xem danh sách các học phần đang mở đăng ký trong học kỳ hiện tại |
+| 5 | `sp_XemLichHocSinhVien` | SinhVien | Rút trích thời khóa biểu cá nhân của sinh viên theo học kỳ |
+| 6 | `sp_XemBangDiem` | SinhVien | Xem toàn bộ bảng điểm chi tiết các môn và GPA tích lũy |
+| 7 | `sp_CapNhatDiem` | GiaoVien | Giáo viên nhập hoặc cập nhật điểm (CC, GK, CK) cho sinh viên |
+| 8 | `sp_ThemSinhVien` | Admin | Quản trị viên thêm sinh viên mới vào hệ thống |
+| 9 | `sp_ThongKeSinhVienTheoHP` | GiaoVien | Xem danh sách toàn bộ sinh viên đã đăng ký vào một học phần |
+| 10 | `sp_DoiMatKhau` | SV / GV | Đổi mật khẩu tài khoản người dùng an toàn |
+
+---
+
+## 7. DANH SÁCH 6 CƠ CHẾ KÍCH HOẠT TỰ ĐỘNG (TRIGGERS)
+
+Các Triggers đóng vai trò là lớp bảo vệ cuối cùng (Last line of defense) để duy trì tính toàn vẹn dữ liệu và tự động hóa các tác vụ ngầm:
+
+| STT | Tên Trigger | Sự kiện (Event) | Bảng tác động | Chức năng chính |
+|:---:|-------------|-----------------|---------------|-----------------|
+| 1 | `trg_BEFORE_DangKy_KiemTra` | `BEFORE INSERT` | `DangKyHocPhan` | Tự động kiểm tra trùng lịch học TRƯỚC KHI sinh viên đăng ký |
+| 2 | `trg_AFTER_DangKy_CapNhatSiSo` | `AFTER INSERT` | `DangKyHocPhan` | Tự động tăng sĩ số `HocPhan` và ghi Log khi đăng ký thành công |
+| 3 | `trg_AFTER_HuyDangKy_CapNhatSiSo`| `AFTER UPDATE` | `DangKyHocPhan` | Tự động giảm sĩ số khi sinh viên hủy đăng ký (Trạng thái -> HuyBo) |
+| 4 | `trg_BEFORE_XoaHocPhan_BaoVe` | `BEFORE DELETE` | `HocPhan` | Ngăn chặn việc xóa học phần nếu đã có sinh viên đăng ký |
+| 5 | `trg_AFTER_Insert/UpdateDiem` | `AFTER INS/UPD` | `BangDiem` | Ghi log kiểm toán (Audit Trail) mỗi khi điểm số bị thay đổi |
+| 6 | `trg_BEFORE_XoaSinhVien_BaoVe` | `BEFORE DELETE` | `SinhVien` | Ngăn xóa sinh viên đang có lịch học hợp lệ, tránh mồ côi dữ liệu |
+
+---
+
+## 8. DANH SÁCH 5 KHUNG NHÌN (VIEWS) PHỤC VỤ BÁO CÁO
+
+Các Views được tạo sẵn nhằm lưu lại các câu truy vấn JOIN phức tạp, giúp việc xuất báo cáo (Reports) trở nên nhanh chóng và dễ dàng:
+
+| STT | Tên View (Khung nhìn) | Chức năng chính |
+|:---:|-----------------------|-----------------|
+| 1 | `vw_BangDiemTongHop` | Bảng điểm đầy đủ của tất cả sinh viên (JOIN từ 5 bảng dữ liệu) |
+| 2 | `vw_LichHocTongHop` | Thời khóa biểu tổng hợp của toàn bộ sinh viên trong hệ thống |
+| 3 | `vw_ThongKeHocPhan` | Báo cáo tỷ lệ lấp đầy, số chỗ còn lại và điểm trung bình của từng học phần |
+| 4 | `vw_XepHangSinhVien` | Bảng xếp hạng học lực, GPA toàn trường (Dùng để xét học bổng) |
+| 5 | `vw_LogHoatDongChiTiet` | Nhật ký hoạt động (Audit Log) có liên kết hiển thị rõ tên người dùng |
+
+---
+
+## 9. MÔ PHỎNG VÀ XỬ LÝ LỖI ĐỒNG THỜI (CONCURRENCY ERRORS)
+
+Dự án cung cấp sẵn các kịch bản để mô phỏng 5 lỗi đồng thời (Concurrency Transactions) kinh điển. Các script này đã có sẵn trong thư mục `sql/demo/`.
+
+> **Lưu ý thực hành:** Để mô phỏng, bạn cần mở **2 Tab truy vấn (Query Tabs)** riêng biệt trên phần mềm MySQL Workbench hoặc Navicat, đóng vai trò là **Session A** và **Session B**. Hãy bôi đen và chạy từng khối lệnh theo đúng thứ tự (Step 1, Step 2...) được ghi chú trong file.
+
+### Lỗi 1: Lost Update (Mất dữ liệu cập nhật)
+- **Kịch bản:** 2 giảng viên cùng lúc cập nhật điểm cho một sinh viên.
+- **Cách thực hiện:** Chạy script `sql/demo/Loi1_LostUpdate.sql`.
+- **Nơi chụp ảnh:** Bạn hãy chụp toàn màn hình có 2 tab Session A và B đặt cạnh nhau, làm nổi bật kết quả điểm cuối cùng bị ghi đè. Lưu ảnh thành `docs/lost_update.png` và cập nhật vào thư mục `docs/`.
+![Lỗi Lost Update](docs/lost_update.png)
+
+### Lỗi 2: Dirty Read (Đọc dữ liệu rác)
+- **Kịch bản:** Sinh viên xem sĩ số lớp học đang được Admin cập nhật nhưng giao dịch của Admin sau đó bị Rollback.
+- **Cách thực hiện:** Chạy script `sql/demo/Loi2_DirtyRead.sql`.
+- **Nơi chụp ảnh:** Chụp khoảnh khắc Session B nhìn thấy sĩ số ảo (chưa được Commit), sau đó Session A gọi lệnh ROLLBACK. Lưu ảnh thành `docs/dirty_read.png`.
+![Lỗi Dirty Read](docs/dirty_read.png)
+
+### Lỗi 3: Non-Repeatable Read (Đọc không thể lặp lại)
+- **Kịch bản:** Sinh viên đang xem học phí/điểm số, một lúc sau xem lại trong cùng 1 phiên thì thấy dữ liệu đã bị đổi do Admin vừa cập nhật.
+- **Cách thực hiện:** Chạy script `sql/demo/Loi3_NonRepeatableRead.sql`.
+- **Nơi chụp ảnh:** Chụp kết quả 2 lần chạy lệnh `SELECT` trong Session A cho ra 2 kết quả khác nhau. Lưu ảnh thành `docs/non_repeatable_read.png`.
+![Lỗi Non Repeatable Read](docs/non_repeatable_read.png)
+
+### Lỗi 4: Phantom Read (Đọc bóng ma)
+- **Kịch bản:** Admin đang thống kê danh sách lớp, cùng lúc đó một sinh viên mới chèn đăng ký học phần vào. Admin thống kê lại thì thấy xuất hiện một "bóng ma" (dòng dữ liệu mới).
+- **Cách thực hiện:** Chạy script `sql/demo/Loi4_PhantomRead.sql`.
+- **Nơi chụp ảnh:** Chụp màn hình tab thống kê của Admin thấy số lượng bản ghi tăng lên bất thường trong cùng 1 Transaction. Lưu ảnh thành `docs/phantom_read.png`.
+![Lỗi Phantom Read](docs/phantom_read.png)
+
+### Lỗi 5: Deadlock (Khóa cứng)
+- **Kịch bản:** Sinh viên A đăng ký Môn 1 rồi Môn 2. Sinh viên B đăng ký Môn 2 rồi Môn 1 cùng lúc. Hai tiến trình giữ khóa của nhau gây ra Deadlock.
+- **Cách thực hiện:** Chạy script `sql/demo/Loi5_Deadlock.sql`.
+- **Nơi chụp ảnh:** Chụp thông báo lỗi màu đỏ (Error Code: 1213 - Deadlock found when trying to get lock) xuất hiện ở phần Output của trình quản lý CSDL. Lưu ảnh thành `docs/deadlock.png`.
+![Lỗi Deadlock](docs/deadlock.png)
+
+---
+
+## 10. HƯỚNG DẪN CÀI ĐẶT VÀ VẬN HÀNH
+
+### 10.1. Yêu cầu hệ thống tối thiểu
 - **Hệ điều hành:** Windows 10/11 (64-bit)
 - **Hệ quản trị CSDL:** MySQL Server 8.0 trở lên
 - **Môi trường thực thi:** Python 3.10+ và Node.js 18+ (Dành cho việc biên dịch và khởi chạy dự án)
 
-### 6.2. Các bước triển khai Cơ sở dữ liệu
+### 10.2. Các bước triển khai Cơ sở dữ liệu
 Mở phần mềm quản trị cơ sở dữ liệu (MySQL Workbench, HeidiSQL hoặc Navicat) và thực thi lần lượt các tập tin theo đúng thứ tự quy định sau:
 1. `sql/01_CreateDatabase.sql`
 2. `sql/02_SampleData.sql`
@@ -276,7 +362,7 @@ Mở phần mềm quản trị cơ sở dữ liệu (MySQL Workbench, HeidiSQL h
 
 *Lưu ý kỹ thuật: Tập tin `02_SampleData.sql` sử dụng chỉ thị `SET FOREIGN_KEY_CHECKS = 0;` nhằm mục đích tối ưu hóa quá trình chèn dữ liệu hàng loạt (Bulk Insert) và tạm thời bỏ qua các Trigger xác thực để nạp 2.758 bản ghi một cách nhanh chóng nhất.*
 
-### 6.3. Cấu hình kết nối
+### 10.3. Cấu hình kết nối
 Mở tập tin `api.py` tại thư mục gốc, điều chỉnh thông tin tại biến `DB_CONFIG` cho khớp với tài khoản quản trị MySQL cục bộ của bạn:
 ```python
 DB_CONFIG = {
@@ -287,7 +373,7 @@ DB_CONFIG = {
 }
 ```
 
-### 6.4. Khởi chạy ứng dụng
+### 10.4. Khởi chạy ứng dụng
 Hệ thống được thiết lập kịch bản tự động hóa tối đa nhằm thuận tiện cho việc đánh giá:
 
 **Phương thức 1: Khởi tạo tự động (Dành cho máy tính mới chạy lần đầu)**

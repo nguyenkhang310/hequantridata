@@ -294,3 +294,115 @@ SV xem điểm + GPA (sp_XemBangDiem)
 ---
 
 **Engine:** InnoDB | **Charset:** utf8mb4 | **Mã hóa:** SHA2-256 | **Isolation mặc định:** REPEATABLE READ
+
+---
+
+## 🧩 PHỤ LỤC BỔ SUNG (Dành cho Báo Cáo)
+
+### 1. Bảng Tổng Kết Đánh Giá Thành Viên
+
+| STT | Họ và Tên | MSSV | Phân Công Nhiệm Vụ | Mức độ hoàn thành (%) | Chữ ký xác nhận |
+|:---:|:---|:---|:---|:---:|:---:|
+| 1 | Nguyễn Văn A | 22511xxx | Thiết kế CSDL, Code tạo bảng & dữ liệu mẫu | 100% | |
+| 2 | Trần Thị B | 22511xxx | Phân tích nghiệp vụ, Viết Functions xử lý | 100% | |
+| 3 | Lê Văn C | 22511xxx | Viết Stored Procedures cốt lõi | 100% | |
+| 4 | Phạm Thị D | 22511xxx | Xây dựng Triggers tự động & Views thống kê | 100% | |
+| 5 | Hoàng Văn E | 22511xxx | Xử lý Transactions, Test lỗi và Viết Báo cáo | 100% | |
+
+### 2. Sơ Đồ Chức Năng (Use Case Diagram)
+
+```mermaid
+flowchart LR
+    %% Định nghĩa các Actor (Tác nhân)
+    SV(["👤 Sinh Viên"])
+    GV(["👨‍🏫 Giáo Viên"])
+    Admin(["⚙️ Quản Trị Viên"])
+
+    %% Hệ thống Đăng ký học phần
+    subgraph HeThong ["Hệ Thống Đăng Ký Học Phần Tín Chỉ"]
+        direction TB
+        DN("Đăng nhập & Đổi mật khẩu")
+        DK("Đăng ký / Hủy đăng ký học phần")
+        XemTKB("Xem lịch học / Thời khóa biểu")
+        XemDiem("Xem điểm & Xếp loại GPA")
+        NhapDiem("Nhập / Cập nhật điểm sinh viên")
+        XemDSSV("Xem danh sách lớp học phần")
+        QuanLy("Quản lý Dữ liệu (Thêm SV, Mở HP...)")
+    end
+
+    %% Liên kết Tác nhân với Chức năng
+    SV --> DN
+    SV --> DK
+    SV --> XemTKB
+    SV --> XemDiem
+
+    GV --> DN
+    GV --> NhapDiem
+    GV --> XemDSSV
+    GV --> XemTKB
+
+    Admin --> DN
+    Admin --> QuanLy
+    Admin --> XemDSSV
+```
+
+### 3. Lưu Đồ Hoạt Động (Activity Diagram) - Luồng Đăng ký môn
+
+```mermaid
+flowchart TD
+    Start((Bắt đầu)) --> DN[Sinh viên Đăng nhập]
+    DN --> ChonHP[Chọn Học phần muốn đăng ký]
+    ChonHP --> CheckTonTai{Học phần<br>còn mở?}
+    
+    CheckTonTai -- Không --> Loi1[Báo lỗi: Lớp đã đóng/Không tồn tại] --> End((Kết thúc))
+    CheckTonTai -- Có --> CheckTrung{Đã ĐK<br>môn này chưa?}
+    
+    CheckTrung -- Có --> Loi2[Báo lỗi: Môn học đã được đăng ký] --> End
+    CheckTrung -- Không --> CheckLich{Có bị trùng lịch<br>với môn khác?}
+    
+    CheckLich -- Có --> Loi3[Báo lỗi: Trùng thời khóa biểu] --> End
+    CheckLich -- Không --> CheckTinChi{Tổng số Tín chỉ<br> > 25?}
+    
+    CheckTinChi -- Có --> Loi4[Báo lỗi: Vượt quá 25 tín chỉ] --> End
+    CheckTinChi -- Không --> CheckSiSo{Sĩ số hiện tại <br>< Sĩ số Tối đa?}
+    
+    CheckSiSo -- Không --> Loi5[Báo lỗi: Lớp đã đầy] --> End
+    CheckSiSo -- Có --> Insert[Lưu dữ liệu vào bảng<br>DangKyHocPhan]
+    
+    Insert --> Update[Trigger chạy ngầm:<br>Tăng Sĩ số + Ghi Log]
+    Update --> ThanhCong[Thông báo: Đăng ký thành công!]
+    ThanhCong --> End
+```
+
+### 4. Từ Điển Dữ Liệu (Data Dictionary)
+
+**Bảng: SinhVien**
+| Tên cột | Kiểu dữ liệu | Khóa | Ràng buộc | Ý nghĩa |
+|---|---|:---:|---|---|
+| MaSV | VARCHAR(20) | **PK** | NOT NULL | Mã số sinh viên |
+| HoTen | VARCHAR(100)| | NOT NULL | Họ và tên |
+| Lop | VARCHAR(50) | | | Lớp sinh hoạt |
+| KhoaHoc | VARCHAR(20) | | | Khóa nhập học |
+| MatKhau | VARCHAR(255)| | NOT NULL | Mật khẩu (SHA2-256) |
+
+**Bảng: HocPhan**
+| Tên cột | Kiểu dữ liệu | Khóa | Ràng buộc | Ý nghĩa |
+|---|---|:---:|---|---|
+| MaHP | VARCHAR(20) | **PK** | NOT NULL | Mã học phần |
+| MaMH | VARCHAR(20) | **FK** | NOT NULL | Mã môn học |
+| MaGV | VARCHAR(20) | **FK** | NOT NULL | Mã giảng viên |
+| HocKy | TINYINT | | CHECK(1-3) | Học kỳ |
+| NamHoc | VARCHAR(20) | | NOT NULL | Năm học |
+| SiSoToiDa | INT | | DEFAULT 40 | Sĩ số tối đa |
+| SiSoHienTai| INT | | DEFAULT 0 | Sĩ số hiện tại |
+| TrangThai | ENUM | | 'Mo', 'Dong', 'Huy' | Trạng thái đăng ký |
+
+**Bảng: DangKyHocPhan**
+| Tên cột | Kiểu dữ liệu | Khóa | Ràng buộc | Ý nghĩa |
+|---|---|:---:|---|---|
+| MaDK | INT | **PK** | AUTO_INCREMENT | Mã lượt đăng ký |
+| MaSV | VARCHAR(20) | **FK** | NOT NULL | Mã sinh viên |
+| MaHP | VARCHAR(20) | **FK** | NOT NULL | Mã học phần |
+| NgayDK | DATETIME | | DEFAULT NOW() | Thời gian |
+| TrangThai| ENUM | | 'DangKy', 'Huy' | Trạng thái |
+*(Có ràng buộc UNIQUE(MaSV, MaHP))*

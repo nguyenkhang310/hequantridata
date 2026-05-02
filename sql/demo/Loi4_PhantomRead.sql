@@ -1,58 +1,46 @@
 -- ============================================================
--- DEMO LỖI 4: PHANTOM READ (Đọc thấy "bóng ma")
--- Đọc 2 lần thấy số lượng dòng dữ liệu KHÁC NHAU do có INSERT mới
+-- DEMO LỖI 4: PHANTOM READ (Đọc bóng ma)
 -- ============================================================
+-- CHUẨN BỊ
 USE QuanLyDKHP;
-SET SQL_SAFE_UPDATES = 0;
-
-DROP TABLE IF EXISTS Demo_DangKy;
-CREATE TABLE Demo_DangKy (
-    MaDK INT AUTO_INCREMENT PRIMARY KEY,
-    MaSV VARCHAR(10),
-    MaHP VARCHAR(10)
-) ENGINE=InnoDB;
-
--- Bỏ sẵn 30 dòng
-INSERT INTO Demo_DangKy (MaSV, MaHP)
-WITH RECURSIVE nums AS ( SELECT 1 AS n UNION ALL SELECT n + 1 FROM nums WHERE n < 30 )
-SELECT CONCAT('SV', LPAD(n, 3, '0')), 'HP001' FROM nums;
-
+DROP TABLE IF EXISTS Demo_Lop;
+CREATE TABLE Demo_Lop (MaSV VARCHAR(10) PRIMARY KEY, Lop VARCHAR(20));
+INSERT INTO Demo_Lop VALUES ('SV001', 'CNTT01'), ('SV002', 'CNTT01');
 -- ============================================================
-SELECT '== DEMO LỖI: Dùng READ COMMITTED (Dễ xuất hiện Phantom) ==' AS Buoc;
+
+-- ------------------------------------------------------------
+-- MỞ TAB 1 (SESSION A - Admin) - Dán đoạn code này vào:
+-- ------------------------------------------------------------
+USE QuanLyDKHP;
+-- Ở MySQL mức REPEATABLE READ mặc định đã chống được Phantom Read đa số trường hợp.
+-- Để demo lỗi này, ta tạm thời hạ mức cách ly xuống READ COMMITTED.
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 START TRANSACTION;
-SELECT COUNT(*) AS 'Lan_Doc_1_So_Luong' FROM Demo_DangKy WHERE MaHP = 'HP001';
--- -> 30
+-- Bước 1: Thống kê số sinh viên lớp CNTT01 (đang có 2)
+SELECT COUNT(*) AS 'SoLuong_Lan1' FROM Demo_Lop WHERE Lop = 'CNTT01';
 
-    -- (Session B INSERT dòng mới và commit)
-    INSERT INTO Demo_DangKy (MaSV, MaHP) VALUES ('SV999', 'HP001');
-    SELECT '(Session B đã INSERT SV999 và commit)' AS SessionB;
-
-SELECT COUNT(*) AS 'Lan_Doc_2_So_Luong_Tang_Len' FROM Demo_DangKy WHERE MaHP = 'HP001';
--- -> 31 (Xuất hiện 1 dòng "Bóng ma"!)
+-- Bước 3: Thống kê lại lần 2
+-- Đột nhiên ra 3 dòng! (Xuất hiện bóng ma do Session B vừa chèn vào)
+SELECT COUNT(*) AS 'SoLuong_Lan2_Bong_Ma' FROM Demo_Lop WHERE Lop = 'CNTT01';
 COMMIT;
 
-SELECT '== KẾT LUẬN: Đọc đếm số lượng 2 lần khác nhau -> PHANTOM READ! ==' AS KetLuan;
+-- Khôi phục mặc định
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+
+-- ------------------------------------------------------------
+-- MỞ TAB 2 (SESSION B - Hệ thống/Sinh viên) - Dán đoạn code này vào:
+-- ------------------------------------------------------------
+USE QuanLyDKHP;
+
+-- Bước 2: Sinh viên mới SV003 đăng ký vào lớp CNTT01
+START TRANSACTION;
+INSERT INTO Demo_Lop VALUES ('SV003', 'CNTT01');
+COMMIT;
+
 
 -- ============================================================
-SELECT '== ✅ FIX: Dùng SERIALIZABLE (Mức cao nhất, chặn INSERT) ==' AS Fix;
-DELETE FROM Demo_DangKy WHERE MaSV = 'SV999'; -- Xóa data rác
-
-SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-START TRANSACTION;
-SELECT COUNT(*) AS 'Lan_Doc_1_SERIALIZABLE' FROM Demo_DangKy WHERE MaHP = 'HP001';
--- -> 30 (Và sẽ TẠO LOCK CHẶN RANGE NÀY)
-
-    -- KHÔNG CHẠY LỆNH INSERT DƯỚI ĐÂY VÌ NÓ SẼ BỊ TREO (BLOCK)
-    SELECT '(Session B cố INSERT SV999 nhưng sẽ bị TREO/WAIT)' AS SessionB;
-    -- INSERT INTO Demo_DangKy (MaSV, MaHP) VALUES ('SV999', 'HP001'); 
-
-SELECT COUNT(*) AS 'Lan_Doc_2_Van_La_30' FROM Demo_DangKy WHERE MaHP = 'HP001';
--- -> 30
-COMMIT;
-
-SELECT '== KẾT LUẬN: SERIALIZABLE khóa range, ngăn chặn hoàn toàn Phantom Read! ==' AS KetLuan_Fix;
-
-SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; -- Đưa về mặc định
-SET SQL_SAFE_UPDATES = 1;
+-- CÁCH FIX LỖI
+-- Để Session A ở mức mặc định REPEATABLE READ hoặc SERIALIZABLE.
+-- MySQL (InnoDB) sử dụng Next-Key Locks để khóa cả khoảng trống, ngăn chặn INSERT.

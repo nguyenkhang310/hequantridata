@@ -13,44 +13,39 @@ INSERT INTO Demo_SiSo VALUES ('HP001', 30), ('HP002', 45);
 
 SELECT '
 =====================================================
-HƯỚNG DẪN DEMO DEADLOCK CHO GIẢNG VIÊN (MỞ 2 TAB)
+HƯỚNG DẪN DEMO DEADLOCK (CẦN LÀM CHUẨN TỪNG BƯỚC)
 =====================================================
-Để có được lỗi Deadlock thật sự, bạn hãy làm đúng theo các bước này:
+Lý do bạn chạy báo xanh là do bạn QUÊN bôi đen chữ START TRANSACTION!
+Nếu không có START TRANSACTION, MySQL sẽ tự động Commit ngay lập tức -> Mất khóa!
 
-1. Copy BƯỚC 1 bên dưới và dán vào Tab hiện tại (Tab 1 - Đại diện Session A)
-2. Mở một Tab SQL mới (File -> New Query Tab), Copy BƯỚC 2 dán vào (Tab 2 - Đại diện Session B)
-3. Chạy từng dòng một theo hướng dẫn ghi chú bên dưới!
+Hãy mở 2 Tab SQL và làm ĐÚNG thứ tự bôi đen sau:
 ' AS HuongDan;
 
 /*
-================== BƯỚC 1 (DÁN VÀO TAB 1) ==================
+================== PHẦN DÀNH CHO TAB 1 ==================
+
+-- BƯỚC 1: Bôi đen và chạy CÙNG LÚC 3 dòng dưới đây ở Tab 1
 USE QuanLyDKHP;
 START TRANSACTION;
--- 1. Chạy dòng này trước (A khóa HP001)
-SELECT * FROM Demo_SiSo WHERE MaHP = 'HP001' FOR UPDATE;
+UPDATE Demo_SiSo SET SiSo = 31 WHERE MaHP = 'HP001';
 
--- (Bây giờ qua Tab 2 chạy phần của B)
+-- BƯỚC 3: Quay lại Tab 1, bôi đen và chạy dòng này (Nó sẽ bị treo quay vòng vòng)
+UPDATE Demo_SiSo SET SiSo = 46 WHERE MaHP = 'HP002';
 
--- 3. Chạy dòng này sau cùng (A cần HP002 nhưng B đang giữ -> BẾ TẮC!)
-SELECT * FROM Demo_SiSo WHERE MaHP = 'HP002' FOR UPDATE;
 ===========================================================
 */
 
 /*
-================== BƯỚC 2 (DÁN VÀO TAB 2 MỚI) ==================
+================== PHẦN DÀNH CHO TAB 2 ==================
+
+-- BƯỚC 2: Bôi đen và chạy CÙNG LÚC 3 dòng dưới đây ở Tab 2
 USE QuanLyDKHP;
 START TRANSACTION;
--- 2. Chạy dòng này thứ hai (B khóa HP002)
-SELECT * FROM Demo_SiSo WHERE MaHP = 'HP002' FOR UPDATE;
+UPDATE Demo_SiSo SET SiSo = 46 WHERE MaHP = 'HP002';
 
--- 4. Chạy dòng này thứ tư (B cần HP001 nhưng A đang giữ)
--- -> MYSQL SẼ PHÁT HIỆN DEADLOCK VÀ BÁO LỖI NGAY TẠI ĐÂY!
-SELECT * FROM Demo_SiSo WHERE MaHP = 'HP001' FOR UPDATE;
+-- BƯỚC 4: Bôi đen và chạy dòng này ở Tab 2
+-- NGAY LẬP TỨC TAB 2 SẼ VĂNG LỖI 1213 DEADLOCK MÀU ĐỎ!
+UPDATE Demo_SiSo SET SiSo = 31 WHERE MaHP = 'HP001';
+
 ===========================================================
 */
-
-SELECT '
-✅ CÁCH FIX BÁO CÁO THẦY:
-1. Luôn truy cập dữ liệu theo đúng 1 thứ tự cố định (Ví dụ: Luôn khóa HP có mã nhỏ trước).
-2. Khi code app, luôn có hàm try-catch để chạy lại (retry) transaction nếu văng lỗi Deadlock.
-' AS GiaiThichFix;

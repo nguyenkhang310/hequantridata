@@ -153,14 +153,119 @@ erDiagram
 
 ---
 
-## 5. HƯỚNG DẪN CÀI ĐẶT VÀ VẬN HÀNH
+## 5. CHI TIẾT CẤU TRÚC CÁC BẢNG DỮ LIỆU
 
-### 5.1. Yêu cầu hệ thống tối thiểu
+Dưới đây là chi tiết cấu trúc của 8 bảng dữ liệu trong hệ thống, bao gồm các ràng buộc (Constraints) quan trọng nhằm bảo đảm tính toàn vẹn dữ liệu:
+
+### 5.1. Bảng `SinhVien` (Lưu thông tin sinh viên)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả chi tiết |
+|---------|--------------|-----------|----------------|
+| `MaSV` | VARCHAR(10) | PK, NOT NULL | Mã sinh viên (Khóa chính) |
+| `HoTen` | VARCHAR(100) | NOT NULL | Họ và tên sinh viên |
+| `NgaySinh` | DATE | | Ngày sinh |
+| `GioiTinh` | ENUM | DEFAULT 'Nam' | Giới tính ('Nam', 'Nu', 'Khac') |
+| `DiaChi` | VARCHAR(200) | | Địa chỉ liên hệ |
+| `Email` | VARCHAR(100) | UNIQUE | Địa chỉ email (Duy nhất) |
+| `SoDT` | VARCHAR(15) | | Số điện thoại liên lạc |
+| `Lop` | VARCHAR(20) | | Lớp sinh hoạt |
+| `KhoaHoc` | VARCHAR(20) | | Khóa học (VD: K21) |
+| `MatKhau` | VARCHAR(255) | NOT NULL | Mật khẩu (Mã hóa SHA256) |
+| `NgayTao` | DATETIME | DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo tài khoản |
+
+### 5.2. Bảng `GiaoVien` (Lưu thông tin giảng viên)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả chi tiết |
+|---------|--------------|-----------|----------------|
+| `MaGV` | VARCHAR(10) | PK, NOT NULL | Mã giảng viên (Khóa chính) |
+| `HoTen` | VARCHAR(100) | NOT NULL | Họ và tên giảng viên |
+| `NgaySinh` | DATE | | Ngày sinh |
+| `GioiTinh` | ENUM | DEFAULT 'Nam' | Giới tính ('Nam', 'Nu', 'Khac') |
+| `Email` | VARCHAR(100) | UNIQUE | Địa chỉ email (Duy nhất) |
+| `SoDT` | VARCHAR(15) | | Số điện thoại |
+| `KhoaBoMon` | VARCHAR(100) | | Khoa / Bộ môn công tác |
+| `HocVi` | VARCHAR(50) | DEFAULT 'ThacSi' | Học vị (ThS, TS, PGS...) |
+| `MatKhau` | VARCHAR(255) | NOT NULL | Mật khẩu (Mã hóa SHA256) |
+| `NgayTao` | DATETIME | DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo tài khoản |
+
+### 5.3. Bảng `MonHoc` (Danh mục môn học)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả chi tiết |
+|---------|--------------|-----------|----------------|
+| `MaMH` | VARCHAR(10) | PK, NOT NULL | Mã môn học (Khóa chính) |
+| `TenMH` | VARCHAR(100) | NOT NULL | Tên môn học |
+| `SoTinChi` | INT | NOT NULL, CHK(1-10) | Số tín chỉ (Chỉ từ 1 đến 10) |
+| `SoTietLT` | INT | NOT NULL, DEFAULT 30 | Số tiết lý thuyết |
+| `SoTietTH` | INT | NOT NULL, DEFAULT 0 | Số tiết thực hành |
+| `MoTa` | TEXT | | Mô tả thông tin môn học |
+
+### 5.4. Bảng `HocPhan` (Lớp mở theo học kỳ)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả chi tiết |
+|---------|--------------|-----------|----------------|
+| `MaHP` | VARCHAR(10) | PK, NOT NULL | Mã học phần (Khóa chính) |
+| `MaMH` | VARCHAR(10) | FK, NOT NULL | Mã môn học (Tham chiếu `MonHoc`) |
+| `MaGV` | VARCHAR(10) | FK | Mã giảng viên (Tham chiếu `GiaoVien`) |
+| `HocKy` | TINYINT | NOT NULL, CHK(1-3) | Học kỳ diễn ra (1, 2, 3) |
+| `NamHoc` | VARCHAR(9) | NOT NULL | Năm học (VD: 2023-2024) |
+| `SiSoToiDa` | INT | NOT NULL, DEFAULT 50 | Sĩ số tối đa của lớp |
+| `SiSoHienTai`| INT | NOT NULL, DEFAULT 0 | Sĩ số hiện tại (Kiểm tra <= Sĩ số tối đa) |
+| `NgayBatDauDK`| DATE | | Ngày bắt đầu mở đăng ký |
+| `NgayKetThucDK`| DATE | | Ngày đóng đăng ký |
+| `TrangThai` | ENUM | DEFAULT 'MoDangKy' | Trạng thái (MoDangKy, DongDangKy...) |
+
+### 5.5. Bảng `LichHoc` (Thời khóa biểu của học phần)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả chi tiết |
+|---------|--------------|-----------|----------------|
+| `MaLich` | INT | PK, AUTO_INCREMENT | Mã lịch học (Tự tăng) |
+| `MaHP` | VARCHAR(10) | FK, NOT NULL | Mã học phần (Tham chiếu `HocPhan`) |
+| `Thu` | ENUM | NOT NULL | Thứ trong tuần ('Thu2' -> 'ChuNhat') |
+| `TietBD` | TINYINT | NOT NULL, CHK | Tiết bắt đầu (>=1 và < TietKT) |
+| `TietKT` | TINYINT | NOT NULL, CHK | Tiết kết thúc (<=15) |
+| `Phong` | VARCHAR(20) | NOT NULL | Mã phòng học (VD: V-A.01) |
+
+### 5.6. Bảng `DangKyHocPhan` (Thông tin sinh viên đăng ký)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả chi tiết |
+|---------|--------------|-----------|----------------|
+| `MaDK` | INT | PK, AUTO_INCREMENT | Mã phiếu đăng ký (Tự tăng) |
+| `MaSV` | VARCHAR(10) | FK, NOT NULL, UQ | Mã sinh viên (Tham chiếu `SinhVien`) |
+| `MaHP` | VARCHAR(10) | FK, NOT NULL, UQ | Mã học phần (Tham chiếu `HocPhan`) |
+| `NgayDK` | DATETIME | DEFAULT CURRENT_TIMESTAMP| Ngày thực hiện thao tác đăng ký |
+| `TrangThai` | ENUM | DEFAULT 'DaDuyet' | Trạng thái (DaDuyet, HuyBo, HoanThanh) |
+
+*(Lưu ý: Cặp `MaSV` và `MaHP` là UNIQUE để tránh 1 sinh viên đăng ký 1 học phần 2 lần)*
+
+### 5.7. Bảng `BangDiem` (Kết quả học tập theo học phần)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả chi tiết |
+|---------|--------------|-----------|----------------|
+| `MaBD` | INT | PK, AUTO_INCREMENT | Mã bảng điểm (Tự tăng) |
+| `MaDK` | INT | FK, NOT NULL, UNIQUE | Mã đăng ký (Tham chiếu `DangKyHocPhan`) |
+| `DiemCC` | DECIMAL(4,2) | NOT NULL, DEFAULT 0.00 | Điểm chuyên cần (Trọng số 10%) |
+| `DiemGiuaKy` | DECIMAL(4,2) | NOT NULL, DEFAULT 0.00 | Điểm giữa kỳ (Trọng số 30%) |
+| `DiemCuoiKy` | DECIMAL(4,2) | NOT NULL, DEFAULT 0.00 | Điểm cuối kỳ (Trọng số 60%) |
+| `DiemTB` | DECIMAL(4,2) | GENERATED STORED | Điểm tổng kết tự động tính |
+| `XepLoai` | VARCHAR(2) | GENERATED STORED | Tự động xếp loại (A, B, C, D, F) |
+| `NgayCapNhat`| DATETIME | ON UPDATE | Thời gian cập nhật điểm cuối cùng |
+| `GhiChu` | VARCHAR(200) | | Các ghi chú bổ sung (VD: Cấm thi) |
+
+### 5.8. Bảng `LogHoatDong` (Nhật ký kiểm toán / Audit Log)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả chi tiết |
+|---------|--------------|-----------|----------------|
+| `MaLog` | INT | PK, AUTO_INCREMENT | ID dòng log (Tự tăng) |
+| `MaNguoiDung`| VARCHAR(10) | | ID của người dùng thao tác |
+| `VaiTro` | ENUM | DEFAULT 'SinhVien' | Phân quyền (SinhVien, GiaoVien, Admin) |
+| `HanhDong` | VARCHAR(100) | NOT NULL | Hành động (VD: Đăng nhập, Hủy HP) |
+| `BangTacDong`| VARCHAR(50) | | Tên bảng bị ảnh hưởng dữ liệu |
+| `MaBanGhi` | VARCHAR(50) | | Khóa chính của dòng dữ liệu bị ảnh hưởng|
+| `ThoiGian` | DATETIME | DEFAULT CURRENT_TIMESTAMP| Thời điểm xảy ra hành động |
+| `GhiChu` | TEXT | | Ghi chú thêm (VD: IP hoặc nội dung lỗi)|
+
+---
+
+## 6. HƯỚNG DẪN CÀI ĐẶT VÀ VẬN HÀNH
+
+### 6.1. Yêu cầu hệ thống tối thiểu
 - **Hệ điều hành:** Windows 10/11 (64-bit)
 - **Hệ quản trị CSDL:** MySQL Server 8.0 trở lên
 - **Môi trường thực thi:** Python 3.10+ và Node.js 18+ (Dành cho việc biên dịch và khởi chạy dự án)
 
-### 5.2. Các bước triển khai Cơ sở dữ liệu
+### 6.2. Các bước triển khai Cơ sở dữ liệu
 Mở phần mềm quản trị cơ sở dữ liệu (MySQL Workbench, HeidiSQL hoặc Navicat) và thực thi lần lượt các tập tin theo đúng thứ tự quy định sau:
 1. `sql/01_CreateDatabase.sql`
 2. `sql/02_SampleData.sql`
@@ -171,7 +276,7 @@ Mở phần mềm quản trị cơ sở dữ liệu (MySQL Workbench, HeidiSQL h
 
 *Lưu ý kỹ thuật: Tập tin `02_SampleData.sql` sử dụng chỉ thị `SET FOREIGN_KEY_CHECKS = 0;` nhằm mục đích tối ưu hóa quá trình chèn dữ liệu hàng loạt (Bulk Insert) và tạm thời bỏ qua các Trigger xác thực để nạp 2.758 bản ghi một cách nhanh chóng nhất.*
 
-### 5.3. Cấu hình kết nối
+### 6.3. Cấu hình kết nối
 Mở tập tin `api.py` tại thư mục gốc, điều chỉnh thông tin tại biến `DB_CONFIG` cho khớp với tài khoản quản trị MySQL cục bộ của bạn:
 ```python
 DB_CONFIG = {
@@ -182,7 +287,7 @@ DB_CONFIG = {
 }
 ```
 
-### 5.4. Khởi chạy ứng dụng
+### 6.4. Khởi chạy ứng dụng
 Hệ thống được thiết lập kịch bản tự động hóa tối đa nhằm thuận tiện cho việc đánh giá:
 
 **Phương thức 1: Khởi tạo tự động (Dành cho máy tính mới chạy lần đầu)**

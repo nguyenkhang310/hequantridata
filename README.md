@@ -338,8 +338,14 @@ Dự án cung cấp sẵn các kịch bản để mô phỏng 5 lỗi đồng th
 
 ### Lỗi 5: Deadlock (Khóa cứng)
 - **Kịch bản:** Tiến trình A giữ tài nguyên X chờ Y. Tiến trình B giữ Y chờ X. Hai bên khóa nhau.
-- **Cách thực hiện:** Chạy file `sql/demo/Loi5_Deadlock.sql`.
-- **Nơi chụp ảnh:** MySQL sẽ chủ động "kill" một tiến trình. Bạn hãy chụp thông báo lỗi màu đỏ (Error Code: 1213 - Deadlock found...) xuất hiện ở bảng thông báo Action Output bên dưới cùng của Workbench. Lưu ảnh thành `docs/deadlock.png`.
+- **Cách thực hiện:** Do bản chất khóa chéo của Deadlock, bạn **BẮT BUỘC** phải chạy trên 2 tab riêng biệt. 
+  1. Mở file `sql/demo/Loi5_Deadlock_SessionA.sql` ở **Tab 1** và `sql/demo/Loi5_Deadlock_SessionB.sql` ở **Tab 2**.
+  2. Tại **Tab 1**, bôi đen và chạy 4 dòng TẠO BẢNG TẠM THỜI.
+  3. Tại **Tab 1**, bôi đen và chạy Bước 1.
+  4. Tại **Tab 2**, bôi đen và chạy Bước 2.
+  5. Tại **Tab 1**, bôi đen và chạy Bước 3 (Tab này sẽ bị treo chờ).
+  6. Tại **Tab 2**, bôi đen và chạy Bước 4. Lập tức Tab 2 sẽ văng lỗi màu đỏ (Error Code: 1213 - Deadlock found).
+- **Nơi chụp ảnh:** Chụp thông báo lỗi màu đỏ (Error Code: 1213) xuất hiện ở bảng thông báo Action Output bên dưới cùng của Tab 2. Lưu ảnh thành `docs/deadlock.png`.
 ![Lỗi Deadlock](docs/deadlock.png)
 
 ---

@@ -1,45 +1,51 @@
 -- ============================================================
--- DEMO LỖI 3: NON-REPEATABLE READ (Đọc không thể lặp lại)
+-- DEMO LỖI 3: NON-REPEATABLE READ (Đọc không lặp lại được)
+-- Trong 1 transaction đọc 2 lần → 2 kết quả khác nhau
 -- ============================================================
--- CHUẨN BỊ
 USE QuanLyDKHP;
-DROP TABLE IF EXISTS Demo_HocPhi;
-CREATE TABLE Demo_HocPhi (MaSV VARCHAR(10) PRIMARY KEY, TienNo INT);
-INSERT INTO Demo_HocPhi VALUES ('SV001', 1000000);
--- ============================================================
+SET SQL_SAFE_UPDATES = 0;
 
--- ------------------------------------------------------------
--- MỞ TAB 1 (SESSION A - Sinh viên) - Dán đoạn code này vào:
--- ------------------------------------------------------------
-USE QuanLyDKHP;
--- Cố tình dùng mức cách ly thấp (READ COMMITTED) để thấy lỗi
+DROP TABLE IF EXISTS Demo_Diem;
+CREATE TABLE Demo_Diem (
+    MaDK INT PRIMARY KEY,
+    MaSV VARCHAR(10),
+    DiemTB DECIMAL(4,2)
+) ENGINE=InnoDB;
+INSERT INTO Demo_Diem VALUES (1, 'SV001', 7.50);
+
+-- ============================================================
+SELECT '== DEMO LỖI: Dùng READ COMMITTED (dễ tái hiện lỗi) ==' AS Buoc;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 START TRANSACTION;
--- Bước 1: Sinh viên xem nợ học phí lần 1
-SELECT TienNo AS 'Lan 1' FROM Demo_HocPhi WHERE MaSV = 'SV001';
--- Thấy nợ 1.000.000, quyết định đi vay tiền để đóng
+SELECT MaSV, DiemTB AS 'Lan_Doc_1_Trong_Transaction' FROM Demo_Diem WHERE MaDK = 1;
+-- → 7.50
 
--- Bước 3: Vay được tiền, mở app lên xem lại nợ lần 2 (vẫn trong cùng 1 phiên)
-SELECT TienNo AS 'Lan 2_Bong_Dung_Thay_Doi' FROM Demo_HocPhi WHERE MaSV = 'SV001';
+    -- (Trong lúc này Session B sửa và commit)
+    UPDATE Demo_Diem SET DiemTB = 9.00 WHERE MaDK = 1;
+    SELECT '(Session B đã sửa DiemTB = 9.00 và commit)' AS SessionB;
+
+SELECT MaSV, DiemTB AS 'Lan_Doc_2_Trong_CUNG_Transaction' FROM Demo_Diem WHERE MaDK = 1;
+-- → 9.00 (KHÁC! → NON-REPEATABLE READ)
 COMMIT;
 
--- Khôi phục mặc định
-SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-
-
--- ------------------------------------------------------------
--- MỞ TAB 2 (SESSION B - Hệ thống) - Dán đoạn code này vào:
--- ------------------------------------------------------------
-USE QuanLyDKHP;
-
--- Bước 2: Hệ thống quét và tự động miễn giảm học phí cho SV001
-START TRANSACTION;
-UPDATE Demo_HocPhi SET TienNo = 500000 WHERE MaSV = 'SV001';
-COMMIT;
-
+SELECT '== KẾT LUẬN: Cùng 1 transaction đọc 2 lần → 2 kết quả khác nhau! ==' AS KetLuan;
 
 -- ============================================================
--- CÁCH FIX LỖI
--- Để Session A ở mức mặc định của MySQL là REPEATABLE READ.
--- Lúc đó cả 2 lần SELECT trong Session A sẽ đảm bảo trả về cùng 1 kết quả là 1.000.000.
+SELECT '== ✅ FIX: Dùng REPEATABLE READ (mặc định MySQL InnoDB) ==' AS Fix;
+UPDATE Demo_Diem SET DiemTB = 7.50 WHERE MaDK = 1; -- Reset
+
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT MaSV, DiemTB AS 'Lan_Doc_1_REPEATABLE_READ' FROM Demo_Diem WHERE MaDK = 1;
+-- → 7.50
+
+    UPDATE Demo_Diem SET DiemTB = 9.00 WHERE MaDK = 1;
+    SELECT '(Session B đã sửa DiemTB = 9.00 và commit)' AS SessionB;
+
+SELECT MaSV, DiemTB AS 'Lan_Doc_2_Van_La' FROM Demo_Diem WHERE MaDK = 1;
+-- → 7.50 (SNAPSHOT tại thời điểm bắt đầu transaction → đọc lại ổn định!)
+COMMIT;
+SELECT '== KẾT LUẬN: REPEATABLE READ đảm bảo đọc lại vẫn thấy cùng kết quả! ==' AS KetLuan_Fix;
+
+SET SQL_SAFE_UPDATES = 1;

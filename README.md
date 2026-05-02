@@ -136,7 +136,7 @@ erDiagram
     }
     
     BangDiem {
-        int MaDK PK_FK
+        int MaDK PK
         decimal DiemCC
         decimal DiemGiuaKy
         decimal DiemCuoiKy

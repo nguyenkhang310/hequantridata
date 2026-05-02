@@ -376,12 +376,10 @@ Nhằm đánh giá tính ổn định của cơ sở dữ liệu khi có hàng n
 | **Thời gian phản hồi TB (Response Time)** | 450ms | 485ms (Tăng nhẹ do phải xếp hàng đợi khóa) | Chấp nhận được |
 
 **Biểu đồ trực quan tỷ lệ rủi ro giao dịch:**
-```mermaid
-pie title Tỷ lệ rủi ro mất mát dữ liệu trong mùa Đăng ký học phần
-    "Đã được bảo vệ (An toàn tuyệt đối)" : 99.9
-    "Rủi ro Deadlock (Tự động Rollback & Retry)" : 0.1
-```
-> ***Kết luận đánh giá:** Việc áp dụng nghiêm ngặt các cơ chế cô lập giao dịch (Isolation Levels) và kiểm soát đồng thời (Concurrency Control) đã giúp Database của UTH Portal đạt độ tin cậy tuyệt đối về mặt dữ liệu. Sự hy sinh một phần nhỏ hiệu suất xử lý (tăng 35ms) là hoàn toàn xứng đáng để đảm bảo tính toàn vẹn và công bằng cho sinh viên.*
+
+![Biểu đồ so sánh tỷ lệ lỗi đồng thời](docs/performance_chart.png)
+
+> ***Kết luận đánh giá:** Nhìn vào biểu đồ, có thể thấy rõ các lỗi nguy hiểm như Mất dữ liệu (Lost Update) hay Sai lệch dữ liệu (Dirty Read, Phantom Read) đã được triệt tiêu hoàn toàn (giảm từ 3-12% xuống 0%). Việc áp dụng nghiêm ngặt các cơ chế cô lập giao dịch (Isolation Levels) và kiểm soát đồng thời (Concurrency Control) đã giúp Database của UTH Portal đạt độ tin cậy tuyệt đối về mặt dữ liệu. Sự hy sinh một phần nhỏ hiệu suất xử lý để đánh đổi lấy sự an toàn là hoàn toàn xứng đáng trong một hệ thống giáo dục công bằng cho sinh viên.*
 
 ---
 

@@ -15,11 +15,10 @@ CREATE TABLE Demo_SiSo (
 INSERT INTO Demo_SiSo VALUES ('HP001', 'Co So Du Lieu', 30);
 
 -- ============================================================
-SELECT '== TRƯỚC KHI DEMO: Sĩ số HP001 ==' AS Buoc;
-SELECT MaHP, TenHP, SiSo AS 'Si_So_Hien_Tai' FROM Demo_SiSo;
+SELECT '1. TRUOC KHI TEST' AS Giai_Doan, MaHP, TenHP, SiSo AS 'Si_So_Hien_Tai' FROM Demo_SiSo;
 
 -- ============================================================
-SELECT '== GIẢ LẬP: Session A và B đều đọc SiSo = 30 cùng lúc ==' AS Buoc;
+-- GIẢ LẬP: Session A và B đều đọc SiSo = 30 cùng lúc
 
 -- Session A đọc, tính 30+1=31, ghi
 START TRANSACTION;
@@ -31,11 +30,10 @@ START TRANSACTION;
 UPDATE Demo_SiSo SET SiSo = 31 WHERE MaHP = 'HP001'; -- B ghi đè 31!
 COMMIT;
 
-SELECT '== KẾT QUẢ SAI: Có 2 SV đăng ký nhưng SiSo chỉ tăng 1 ==' AS Buoc;
-SELECT MaHP, SiSo AS 'Mong_Duoc_32_Nhung_Chi_Co' FROM Demo_SiSo;
+SELECT '2. KET QUA LỖI (Lost Update)' AS Giai_Doan, MaHP, SiSo AS 'Mong_32_Nhung_Chi_Tang_1' FROM Demo_SiSo;
 
 -- ============================================================
-SELECT '== ✅ FIX: Dùng UPDATE nguyên tử (SET SiSo = SiSo + 1) ==' AS Buoc;
+-- ✅ FIX: Dùng UPDATE nguyên tử (SET SiSo = SiSo + 1)
 UPDATE Demo_SiSo SET SiSo = 30 WHERE MaHP = 'HP001'; -- Reset
 
 START TRANSACTION;
@@ -46,7 +44,6 @@ START TRANSACTION;
 UPDATE Demo_SiSo SET SiSo = SiSo + 1 WHERE MaHP = 'HP001';
 COMMIT;
 
-SELECT '== KẾT QUẢ ĐÚNG: SiSo = 32 (tăng đúng 2 lần) ==' AS Buoc;
-SELECT MaHP, SiSo AS 'Ket_Qua_Dung_La_32' FROM Demo_SiSo;
+SELECT '3. KET QUA DUNG (Da Fix)' AS Giai_Doan, MaHP, SiSo AS 'Da_Tang_Dung_2_Lan' FROM Demo_SiSo;
 
 SET SQL_SAFE_UPDATES = 1;

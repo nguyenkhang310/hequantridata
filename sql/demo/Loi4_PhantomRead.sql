@@ -18,41 +18,31 @@ WITH RECURSIVE nums AS ( SELECT 1 AS n UNION ALL SELECT n + 1 FROM nums WHERE n 
 SELECT CONCAT('SV', LPAD(n, 3, '0')), 'HP001' FROM nums;
 
 -- ============================================================
-SELECT '== DEMO LỖI: Dùng READ COMMITTED (Dễ xuất hiện Phantom) ==' AS Buoc;
+-- DEMO LỖI: Dùng READ COMMITTED (Dễ xuất hiện Phantom)
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 START TRANSACTION;
-SELECT COUNT(*) AS 'Lan_Doc_1_So_Luong' FROM Demo_DangKy WHERE MaHP = 'HP001';
--- -> 30
+SELECT '1. KET QUA LỖI (Lan 1)' AS Giai_Doan, COUNT(*) AS 'Dang_La_30_Dong' FROM Demo_DangKy WHERE MaHP = 'HP001';
 
     -- (Session B INSERT dòng mới và commit)
     INSERT INTO Demo_DangKy (MaSV, MaHP) VALUES ('SV999', 'HP001');
-    SELECT '(Session B đã INSERT SV999 và commit)' AS SessionB;
 
-SELECT COUNT(*) AS 'Lan_Doc_2_So_Luong_Tang_Len' FROM Demo_DangKy WHERE MaHP = 'HP001';
--- -> 31 (Xuất hiện 1 dòng "Bóng ma"!)
+SELECT '2. KET QUA LỖI (Lan 2 - Phantom!)' AS Giai_Doan, COUNT(*) AS 'Tu_Nhien_Thanh_31_Dong' FROM Demo_DangKy WHERE MaHP = 'HP001';
 COMMIT;
 
-SELECT '== KẾT LUẬN: Đọc đếm số lượng 2 lần khác nhau -> PHANTOM READ! ==' AS KetLuan;
-
 -- ============================================================
-SELECT '== ✅ FIX: Dùng SERIALIZABLE (Mức cao nhất, chặn INSERT) ==' AS Fix;
+-- ✅ FIX: Dùng SERIALIZABLE (Mức cao nhất, chặn INSERT)
 DELETE FROM Demo_DangKy WHERE MaSV = 'SV999'; -- Xóa data rác
 
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 START TRANSACTION;
-SELECT COUNT(*) AS 'Lan_Doc_1_SERIALIZABLE' FROM Demo_DangKy WHERE MaHP = 'HP001';
--- -> 30 (Và sẽ TẠO LOCK CHẶN RANGE NÀY)
+SELECT '3. KET QUA DUNG (Lan 1)' AS Giai_Doan, COUNT(*) AS 'Dang_La_30_Dong' FROM Demo_DangKy WHERE MaHP = 'HP001';
 
-    -- KHÔNG CHẠY LỆNH INSERT DƯỚI ĐÂY VÌ NÓ SẼ BỊ TREO (BLOCK)
-    SELECT '(Session B cố INSERT SV999 nhưng sẽ bị TREO/WAIT)' AS SessionB;
+    -- (Trong thực tế, câu lệnh INSERT dưới đây của Session B sẽ bị TREO/WAIT)
     -- INSERT INTO Demo_DangKy (MaSV, MaHP) VALUES ('SV999', 'HP001'); 
 
-SELECT COUNT(*) AS 'Lan_Doc_2_Van_La_30' FROM Demo_DangKy WHERE MaHP = 'HP001';
--- -> 30
+SELECT '4. KET QUA DUNG (Lan 2 - On dinh!)' AS Giai_Doan, COUNT(*) AS 'Van_Giu_Nguyen_30_Dong' FROM Demo_DangKy WHERE MaHP = 'HP001';
 COMMIT;
-
-SELECT '== KẾT LUẬN: SERIALIZABLE khóa range, ngăn chặn hoàn toàn Phantom Read! ==' AS KetLuan_Fix;
 
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ; -- Đưa về mặc định
 SET SQL_SAFE_UPDATES = 1;

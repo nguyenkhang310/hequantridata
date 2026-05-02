@@ -383,44 +383,42 @@ Nhằm đánh giá tính ổn định của cơ sở dữ liệu khi có hàng n
 
 ---
 
-## 11. HƯỚNG DẪN CÀI ĐẶT VÀ VẬN HÀNH
+## 11. HƯỚNG DẪN TRIỂN KHAI VÀ CHẤM ĐIỂM (TRÊN MÁY KHÁC)
 
-### 11.1. Yêu cầu hệ thống tối thiểu
-- **Hệ điều hành:** Windows 10/11 (64-bit)
-- **Hệ quản trị CSDL:** MySQL Server 8.0 trở lên
-- **Môi trường thực thi:** Python 3.10+ và Node.js 18+ (Dành cho việc biên dịch và khởi chạy dự án)
+Để mang dự án sang một máy tính khác (hoặc máy của Giảng viên để chấm điểm) và chạy thành công ngay lập tức, vui lòng làm đúng theo 4 bước sau:
 
-### 10.2. Các bước triển khai Cơ sở dữ liệu
-Mở phần mềm quản trị cơ sở dữ liệu (MySQL Workbench, HeidiSQL hoặc Navicat) và thực thi lần lượt các tập tin theo đúng thứ tự quy định sau:
-1. `sql/01_CreateDatabase.sql`
-2. `sql/02_SampleData.sql`
-3. `sql/03_Functions.sql`
-4. `sql/04_StoredProcedures.sql`
-5. `sql/05_Triggers.sql`
-6. `sql/06_Views.sql`
+### Bước 1: Khởi tạo Cơ sở dữ liệu (Database)
+Máy tính mới bắt buộc phải được cài đặt MySQL Server (hoặc XAMPP có MySQL) và MySQL Workbench.
+1. Mở MySQL Workbench, tạo một Connection mới (hoặc dùng Local instance có sẵn).
+2. Mở lần lượt 6 file trong thư mục `sql/` và ấn chạy (Execute) theo **đúng thứ tự sau**:
+   - `01_CreateDatabase.sql` (Tạo cấu trúc rỗng)
+   - `02_SampleData.sql` (Nạp hơn 2.700 dòng dữ liệu mẫu)
+   - `03_Functions.sql` (Tạo các hàm tính toán)
+   - `04_StoredProcedures.sql` (Tạo 10 thủ tục lưu trữ)
+   - `05_Triggers.sql` (Tạo 6 bẫy sự kiện)
+   - `06_Views.sql` (Tạo 5 khung nhìn)
 
-*Lưu ý kỹ thuật: Tập tin `02_SampleData.sql` sử dụng chỉ thị `SET FOREIGN_KEY_CHECKS = 0;` nhằm mục đích tối ưu hóa quá trình chèn dữ liệu hàng loạt (Bulk Insert) và tạm thời bỏ qua các Trigger xác thực để nạp 2.758 bản ghi một cách nhanh chóng nhất.*
-
-### 10.3. Cấu hình kết nối
-Mở tập tin `api.py` tại thư mục gốc, điều chỉnh thông tin tại biến `DB_CONFIG` cho khớp với tài khoản quản trị MySQL cục bộ của bạn:
+### Bước 2: Cấu hình tài khoản MySQL cục bộ
+Do mỗi máy tính có mật khẩu root MySQL khác nhau, bạn phải cập nhật lại mật khẩu để ứng dụng có thể kết nối được vào CSDL.
+1. Nhấn chuột phải vào file `api.py` (nằm ở thư mục gốc của dự án), chọn **Edit with Notepad** hoặc **Open with VS Code**.
+2. Tìm đến dòng số 12 (biến `DB_CONFIG`) và thay đổi chữ `MAT_KHAU_CUA_BAN` thành mật khẩu MySQL của máy tính đang chạy:
 ```python
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'MAT_KHAU_CUA_BAN',
+    'password': 'MAT_KHAU_CUA_BAN', # <<< THAY MẬT KHẨU CỦA MÁY GIẢNG VIÊN VÀO ĐÂY
     'database': 'QuanLyDKHP'
 }
 ```
+3. Nhấn `Ctrl + S` để lưu file lại.
 
-### 10.4. Khởi chạy ứng dụng
-Hệ thống được thiết lập kịch bản tự động hóa tối đa nhằm thuận tiện cho việc đánh giá:
+### Bước 3: Khởi chạy phần mềm
+Dự án đã được đóng gói sẵn để chạy linh hoạt trên mọi máy tính. Bạn có 2 cách để khởi chạy:
 
-**Phương thức 1: Khởi tạo tự động (Dành cho máy tính mới chạy lần đầu)**
-Tại thư mục gốc, khởi chạy tập tin `SETUP.bat`. Script sẽ tự động chẩn đoán môi trường máy tính, tải xuống toàn bộ thư viện Python (như Flask, Pywebview) và các gói Node.js tương ứng mà không cần gõ lệnh thủ công.
+- **Cách 1 (Nhanh nhất - Dành cho người dùng cuối):** Click đúp chuột vào file `UTH_Portal_Web.exe`. Phần mềm sẽ tự động bật luồng chạy ngầm API và mở một cửa sổ Desktop ứng dụng lên.
+- **Cách 2 (Môi trường Code/Dev):** Nếu máy giảng viên không thích chạy file `.exe`, hãy mở Command Prompt (Terminal) tại thư mục dự án và chạy file `SETUP.bat`. Kịch bản này sẽ tự động cài các thư viện Python cần thiết (`pip install`) và khởi động cả Frontend lẫn Backend song song.
 
-**Phương thức 2: Chạy trực tiếp ứng dụng (Người dùng cuối)**
-Khởi chạy tập tin `UTH_Portal_Web.exe`. Phần mềm sẽ tự động cấp phát tài nguyên luồng (threads), khởi động máy chủ API nội bộ và hiển thị giao diện phần mềm.
-
-**Thông tin Tài khoản Thử nghiệm:**
-- Phân quyền Sinh viên: Tài khoản từ `SV001` đến `SV500` (Mật khẩu mặc định: `sv123456`)
-- Phân quyền Giảng viên: Tài khoản từ `GV001` đến `GV020` (Mật khẩu mặc định: `gv123456`)
+### Bước 4: Đăng nhập dùng thử
+Sau khi giao diện đăng nhập hiện lên, sử dụng các tài khoản có sẵn dưới đây để test:
+- **Tài khoản Sinh viên:** `SV001` đến `SV500` (Mật khẩu: `sv123456`)
+- **Tài khoản Giảng viên:** `GV001` đến `GV020` (Mật khẩu: `gv123456`)

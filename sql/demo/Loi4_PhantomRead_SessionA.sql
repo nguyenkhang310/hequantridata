@@ -1,15 +1,12 @@
 -- ============================================================
--- DEMO LOI 4: PHANTOM READ
--- Doc COUNT(*) 2 lan trong 1 transaction nhung lan 2 xuat hien them dong moi.
--- Cach chay dung: can 2 cua so ket noi MySQL rieng biet.
--- Khong bam Execute All trong mot tab.
+-- DEMO LOI 4: PHANTOM READ - SESSION A
+-- Mo file nay trong connection/cua so thu nhat.
+-- Chay tung khoi theo thu tu: A0 -> A1 -> B1 -> A2 -> A3 -> B2 -> A4.
 -- ============================================================
 
 USE QuanLyDKHP;
 
--- ============================================================
--- BUOC 0 - SESSION A: chuan bi du lieu
--- ============================================================
+-- A0. Chuan bi du lieu 30 dong. Chay khoi nay truoc.
 DROP TABLE IF EXISTS Demo_DangKy;
 CREATE TABLE Demo_DangKy (
     MaDK INT AUTO_INCREMENT PRIMARY KEY,
@@ -26,49 +23,46 @@ WITH RECURSIVE nums AS (
 )
 SELECT CONCAT('SV', LPAD(n, 3, '0')), 'HP001'
 FROM nums;
+COMMIT;
 
--- ============================================================
--- PHAN A - TAO LOI VOI READ COMMITTED
--- ============================================================
+SELECT '0. SAU A0 - bang demo co 30 dong' AS Giai_Doan, COUNT(*) AS SoDong
+FROM Demo_DangKy
+WHERE MaHP = 'HP001';
 
--- BUOC 1 - SESSION A:
+-- A1. Lan dem 1 trong READ COMMITTED. Sau khoi nay qua Session B chay B1.
+COMMIT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SELECT 'A1 CHECK - isolation phai la READ-COMMITTED' AS Giai_Doan,
+       @@transaction_isolation AS IsolationLevel;
 START TRANSACTION;
 SELECT '1. LOI - LAN DEM 1, dang la 30 dong' AS Giai_Doan, COUNT(*) AS SoDong
 FROM Demo_DangKy
 WHERE MaHP = 'HP001';
 
--- BUOC 2 - SESSION B:
-INSERT INTO Demo_DangKy (MaSV, MaHP) VALUES ('SV999', 'HP001');
-COMMIT;
-
--- BUOC 3 - SESSION A:
+-- A2. Lan dem 2 se thay dong moi, thanh 31.
+-- Chay sau khi Session B da chay B1.
 SELECT '2. LOI - LAN DEM 2, bi thanh 31 dong' AS Giai_Doan, COUNT(*) AS SoDong
 FROM Demo_DangKy
 WHERE MaHP = 'HP001';
 COMMIT;
 
--- ============================================================
--- PHAN B - CACH KHAC PHUC: REPEATABLE READ
--- ============================================================
-
--- BUOC 4 - SESSION A:
+-- A3. Bat dau phan fix bang REPEATABLE READ. Sau khoi nay qua Session B chay B2.
+-- Xoa het dong demo cu neu truoc do bam chay B1/B2 nhieu lan.
 -- Dieu kien MaDK > 0 giup chay duoc khi MySQL Workbench bat Safe Updates.
 DELETE FROM Demo_DangKy
-WHERE MaSV = 'SV999'
+WHERE MaSV IN ('SV998', 'SV999')
   AND MaDK > 0;
 COMMIT;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT 'A3 CHECK - isolation phai la REPEATABLE-READ' AS Giai_Doan,
+       @@transaction_isolation AS IsolationLevel;
 START TRANSACTION;
 SELECT '3. DA FIX - LAN DEM 1, dang la 30 dong' AS Giai_Doan, COUNT(*) AS SoDong
 FROM Demo_DangKy
 WHERE MaHP = 'HP001';
 
--- BUOC 5 - SESSION B:
-INSERT INTO Demo_DangKy (MaSV, MaHP) VALUES ('SV999', 'HP001');
-COMMIT;
-
--- BUOC 6 - SESSION A:
+-- A4. Lan dem 2 van giu 30 dong du Session B da insert.
+-- Chay sau khi Session B da chay B2.
 SELECT '4. DA FIX - LAN DEM 2 van giu 30 dong' AS Giai_Doan, COUNT(*) AS SoDong
 FROM Demo_DangKy
 WHERE MaHP = 'HP001';

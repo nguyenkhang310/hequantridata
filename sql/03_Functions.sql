@@ -96,14 +96,16 @@ RETURNS VARCHAR(20)
 DETERMINISTIC
 COMMENT 'Xếp loại học lực theo GPA thang 4.0'
 BEGIN
+    DECLARE v_Loai VARCHAR(20);
     CASE
-        WHEN p_GPA >= 3.60 THEN RETURN 'Xuất sắc';
-        WHEN p_GPA >= 3.20 THEN RETURN 'Giỏi';
-        WHEN p_GPA >= 2.50 THEN RETURN 'Khá';
-        WHEN p_GPA >= 2.00 THEN RETURN 'Trung bình';
-        WHEN p_GPA >= 1.00 THEN RETURN 'Yếu';
-        ELSE RETURN 'Kém';
+        WHEN p_GPA >= 3.60 THEN SET v_Loai = 'Xuất sắc';
+        WHEN p_GPA >= 3.20 THEN SET v_Loai = 'Giỏi';
+        WHEN p_GPA >= 2.50 THEN SET v_Loai = 'Khá';
+        WHEN p_GPA >= 2.00 THEN SET v_Loai = 'Trung bình';
+        WHEN p_GPA >= 1.00 THEN SET v_Loai = 'Yếu';
+        ELSE SET v_Loai = 'Kém';
     END CASE;
+    RETURN v_Loai;
 END$$
 
 -- ============================================================
@@ -181,20 +183,20 @@ DELIMITER ;
 -- ============================================================
 -- KIỂM TRA FUNCTIONS
 -- ============================================================
-SELECT 'Kiểm tra f_HashPassword:' AS Test,
-       f_HashPassword('sv123456') AS KetQua;
+-- SELECT 'Kiểm tra f_HashPassword:' AS Test,
+--        f_HashPassword('sv123456') AS KetQua;
 
-SELECT 'Kiểm tra f_TinhDiemTB (9.5, 8.0, 8.5):' AS Test,
-       f_TinhDiemTB(9.5, 8.0, 8.5) AS KetQua;
+-- SELECT 'Kiểm tra f_TinhDiemTB (9.5, 8.0, 8.5):' AS Test,
+--        f_TinhDiemTB(9.5, 8.0, 8.5) AS KetQua;
 
-SELECT 'Kiểm tra f_TinhGPA (SV001):' AS Test,
-       f_TinhGPA('SV001') AS GPA,
-       f_XepLoaiHocLuc(f_TinhGPA('SV001')) AS XepLoai;
+-- SELECT 'Kiểm tra f_TinhGPA (SV001):' AS Test,
+--        f_TinhGPA('SV001') AS GPA,
+--        f_XepLoaiHocLuc(f_TinhGPA('SV001')) AS XepLoai;
 
-SELECT 'Kiểm tra f_KiemTraTrungLich (SV001 - HP002):' AS Test,
-       f_KiemTraTrungLich('SV001', 'HP002') AS TrungLich_1Thi0Khong;
+-- SELECT 'Kiểm tra f_KiemTraTrungLich (SV001 - HP002):' AS Test,
+--        f_KiemTraTrungLich('SV001', 'HP002') AS TrungLich_1Thi0Khong;
 
-SELECT 'Kiểm tra f_TongTinChi (SV001, HK1, 2025-2026):' AS Test,
-       f_TongTinChiDaDangKy('SV001', 1, '2025-2026') AS TongTinChi;
+-- SELECT 'Kiểm tra f_TongTinChi (SV001, HK1, 2025-2026):' AS Test,
+--        f_TongTinChiDaDangKy('SV001', 1, '2025-2026') AS TongTinChi;
 
 SELECT '6 Functions đã tạo thành công!' AS ThongBao;

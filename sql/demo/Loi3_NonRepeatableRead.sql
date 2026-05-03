@@ -1,10 +1,15 @@
 -- ============================================================
--- DEMO LỖI 3: NON-REPEATABLE READ (Đọc không lặp lại được)
--- Trong 1 transaction đọc 2 lần → 2 kết quả khác nhau
+-- DEMO LOI 3: NON-REPEATABLE READ
+-- Doc cung mot dong 2 lan trong 1 transaction nhung ra 2 gia tri khac nhau.
+-- Cach chay dung: can 2 cua so ket noi MySQL rieng biet.
+-- Khong bam Execute All trong mot tab.
 -- ============================================================
-USE QuanLyDKHP;
-SET SQL_SAFE_UPDATES = 0;
 
+USE QuanLyDKHP;
+
+-- ============================================================
+-- BUOC 0 - SESSION A: chuan bi du lieu
+-- ============================================================
 DROP TABLE IF EXISTS Demo_Diem;
 CREATE TABLE Demo_Diem (
     MaDK INT PRIMARY KEY,
@@ -14,30 +19,46 @@ CREATE TABLE Demo_Diem (
 INSERT INTO Demo_Diem VALUES (1, 'SV001', 7.50);
 
 -- ============================================================
--- DEMO LỖI: Dùng READ COMMITTED (dễ tái hiện lỗi)
+-- PHAN A - TAO LOI VOI READ COMMITTED
+-- ============================================================
+
+-- BUOC 1 - SESSION A:
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-
 START TRANSACTION;
-SELECT '1. KET QUA LỖI (Lan 1)' AS Giai_Doan, MaSV, DiemTB AS 'Dang_La_7.5' FROM Demo_Diem WHERE MaDK = 1;
+SELECT '1. LOI - LAN DOC 1, dang la 7.50' AS Giai_Doan, MaSV, DiemTB
+FROM Demo_Diem
+WHERE MaDK = 1;
 
-    -- (Trong lúc này Session B sửa và commit)
-    UPDATE Demo_Diem SET DiemTB = 9.00 WHERE MaDK = 1;
+-- BUOC 2 - SESSION B:
+UPDATE Demo_Diem SET DiemTB = 9.00 WHERE MaDK = 1;
+COMMIT;
 
-SELECT '2. KET QUA LỖI (Lan 2 - Thay doi!)' AS Giai_Doan, MaSV, DiemTB AS 'Bi_Doi_Thanh_9.0' FROM Demo_Diem WHERE MaDK = 1;
+-- BUOC 3 - SESSION A:
+SELECT '2. LOI - LAN DOC 2, bi doi thanh 9.00' AS Giai_Doan, MaSV, DiemTB
+FROM Demo_Diem
+WHERE MaDK = 1;
 COMMIT;
 
 -- ============================================================
--- ✅ FIX: Dùng REPEATABLE READ (mặc định MySQL InnoDB)
-UPDATE Demo_Diem SET DiemTB = 7.50 WHERE MaDK = 1; -- Reset
+-- PHAN B - CACH KHAC PHUC: REPEATABLE READ
+-- ============================================================
 
+-- BUOC 4 - SESSION A:
+UPDATE Demo_Diem SET DiemTB = 7.50 WHERE MaDK = 1;
+COMMIT;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 START TRANSACTION;
-SELECT '3. KET QUA DUNG (Lan 1)' AS Giai_Doan, MaSV, DiemTB AS 'Dang_La_7.5' FROM Demo_Diem WHERE MaDK = 1;
+SELECT '3. DA FIX - LAN DOC 1, dang la 7.50' AS Giai_Doan, MaSV, DiemTB
+FROM Demo_Diem
+WHERE MaDK = 1;
 
-    -- Session B sửa DiemTB = 9.00 và commit
-    UPDATE Demo_Diem SET DiemTB = 9.00 WHERE MaDK = 1;
-
-SELECT '4. KET QUA DUNG (Lan 2 - On dinh!)' AS Giai_Doan, MaSV, DiemTB AS 'Van_Giu_Nguyen_7.5' FROM Demo_Diem WHERE MaDK = 1;
+-- BUOC 5 - SESSION B:
+UPDATE Demo_Diem SET DiemTB = 9.00 WHERE MaDK = 1;
 COMMIT;
 
-SET SQL_SAFE_UPDATES = 1;
+-- BUOC 6 - SESSION A:
+SELECT '4. DA FIX - LAN DOC 2 van giu 7.50' AS Giai_Doan, MaSV, DiemTB
+FROM Demo_Diem
+WHERE MaDK = 1;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;

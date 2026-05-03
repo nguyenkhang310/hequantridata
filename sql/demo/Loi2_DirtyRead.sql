@@ -1,10 +1,15 @@
 -- ============================================================
--- DEMO LỖI 2: DIRTY READ (Đọc dữ liệu bẩn)
--- Chạy toàn bộ, xem kết quả bước cuối
+-- DEMO LOI 2: DIRTY READ (doc du lieu chua commit)
+-- Cach chay dung: can 2 cua so ket noi MySQL rieng biet.
+-- Khong bam Execute All trong mot tab.
 -- ============================================================
+
 USE QuanLyDKHP;
 
--- Chuẩn bị
+-- ============================================================
+-- BUOC 0 - SESSION A: chuan bi du lieu
+-- Chay khoi nay truoc.
+-- ============================================================
 DROP TABLE IF EXISTS Demo_Diem;
 CREATE TABLE Demo_Diem (
     MaDK INT PRIMARY KEY,
@@ -12,35 +17,50 @@ CREATE TABLE Demo_Diem (
     DiemTB DECIMAL(4,2)
 ) ENGINE=InnoDB;
 INSERT INTO Demo_Diem VALUES (1, 'SV001', 7.50);
-
-SELECT '1. DIEM BAN DAU' AS Giai_Doan, MaSV, DiemTB AS Diem_Ban_Dau FROM Demo_Diem WHERE MaDK = 1;
+SELECT '0. DIEM BAN DAU' AS Giai_Doan, MaSV, DiemTB FROM Demo_Diem WHERE MaDK = 1;
 
 -- ============================================================
--- SESSION A: Giáo viên đang sửa điểm lên 9.0 (CHƯA COMMIT)
+-- PHAN A - TAO LOI DIRTY READ
+-- ============================================================
+
+-- BUOC 1 - SESSION A:
 START TRANSACTION;
 UPDATE Demo_Diem SET DiemTB = 9.00 WHERE MaDK = 1;
--- ⚠️ Chưa COMMIT! Đây là điểm "bẩn"
+-- De nguyen transaction, chua COMMIT/ROLLBACK.
 
--- ============================================================
--- SESSION B: Sinh viên đọc với READ UNCOMMITTED → Thấy điểm BẨN 9.0
+-- BUOC 2 - SESSION B:
+-- Chay trong cua so ket noi thu hai.
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-SELECT '2. KET QUA LỖI (Dirty Read)' AS Giai_Doan, MaSV, DiemTB AS 'Doc_Thấy_9.0_Chua_Commit' FROM Demo_Diem WHERE MaDK = 1;
+SELECT '1. LOI DIRTY READ - doc thay 9.00 chua commit' AS Giai_Doan,
+       MaSV, DiemTB
+FROM Demo_Diem
+WHERE MaDK = 1;
+COMMIT;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
--- ============================================================
--- SESSION A: Phát hiện sai → ROLLBACK, điểm về 7.5
+-- BUOC 3 - SESSION A:
 ROLLBACK;
+SELECT '2. SAU ROLLBACK - diem that ve 7.50' AS Giai_Doan, MaSV, DiemTB
+FROM Demo_Diem
+WHERE MaDK = 1;
 
 -- ============================================================
--- ✅ FIX: Dùng READ COMMITTED - Session B KHÔNG thấy dữ liệu chưa commit
-UPDATE Demo_Diem SET DiemTB = 7.50 WHERE MaDK = 1;
+-- PHAN B - CACH KHAC PHUC: READ COMMITTED
+-- ============================================================
 
+-- BUOC 4 - SESSION A:
 START TRANSACTION;
 UPDATE Demo_Diem SET DiemTB = 9.00 WHERE MaDK = 1;
--- Chưa commit
+-- Van chua commit.
 
-SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED; -- Mức an toàn hơn
-SELECT '3. KET QUA DUNG (Da Fix)' AS Giai_Doan, MaSV, DiemTB AS 'Chỉ_Thấy_7.5_An_Toan' FROM Demo_Diem WHERE MaDK = 1;
--- Sẽ thấy 7.50, không thấy 9.00 chưa commit
-ROLLBACK;
+-- BUOC 5 - SESSION B:
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SELECT '3. DA FIX - READ COMMITTED chi thay 7.50' AS Giai_Doan,
+       MaSV, DiemTB
+FROM Demo_Diem
+WHERE MaDK = 1;
+COMMIT;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+-- BUOC 6 - SESSION A:
+ROLLBACK;

@@ -21,10 +21,14 @@ BEGIN
     DECLARE v_TrangThaiHP VARCHAR(20);
     DECLARE v_SiSoHT      INT;
     DECLARE v_SiSoMax     INT;
+    DECLARE v_MaMH_Moi    VARCHAR(10);
+    DECLARE v_TrungMonHoc INT DEFAULT 0;
+    DECLARE v_NgayBD      DATE;
+    DECLARE v_NgayKT      DATE;
 
     -- Kiểm tra trạng thái học phần
-    SELECT TrangThai, SiSoHienTai, SiSoToiDa
-    INTO   v_TrangThaiHP, v_SiSoHT, v_SiSoMax
+    SELECT TrangThai, SiSoHienTai, SiSoToiDa, MaMH, NgayBatDauDK, NgayKetThucDK
+    INTO   v_TrangThaiHP, v_SiSoHT, v_SiSoMax, v_MaMH_Moi, v_NgayBD, v_NgayKT
     FROM HocPhan WHERE MaHP = NEW.MaHP;
 
     IF v_TrangThaiHP != 'MoDangKy' THEN
@@ -32,9 +36,29 @@ BEGIN
             SET MESSAGE_TEXT = 'Học phần đã đóng đăng ký!';
     END IF;
 
+    IF (v_NgayBD IS NOT NULL AND CURDATE() < v_NgayBD)
+        OR (v_NgayKT IS NOT NULL AND CURDATE() > v_NgayKT) THEN
+        SIGNAL SQLSTATE '45006'
+            SET MESSAGE_TEXT = 'Hiện không nằm trong thời gian đăng ký học phần!';
+    END IF;
+
     IF v_SiSoHT >= v_SiSoMax THEN
         SIGNAL SQLSTATE '45001'
             SET MESSAGE_TEXT = 'Học phần đã đầy, không thể đăng ký thêm!';
+    END IF;
+
+    -- Không cho đăng ký cùng một môn ở lớp khác khi bản ghi cũ vẫn đang DaDuyet
+    SELECT COUNT(*) INTO v_TrungMonHoc
+    FROM DangKyHocPhan dk
+    JOIN HocPhan hp ON dk.MaHP = hp.MaHP
+    WHERE dk.MaSV       = NEW.MaSV
+      AND hp.MaMH       = v_MaMH_Moi
+      AND dk.TrangThai  = 'DaDuyet'
+      AND dk.MaHP      != NEW.MaHP;
+
+    IF v_TrungMonHoc > 0 THEN
+        SIGNAL SQLSTATE '45005'
+            SET MESSAGE_TEXT = 'Sinh viên đang học môn học này ở một lớp khác!';
     END IF;
 
     -- Kiểm tra trùng lịch
@@ -44,6 +68,7 @@ BEGIN
             SET MESSAGE_TEXT = 'Lịch học bị trùng với học phần đã đăng ký!';
     END IF;
 END$$
+
 
 -- ============================================================
 -- TRIGGER 2: trg_AFTER_DangKy_CapNhatSiSo
@@ -198,13 +223,25 @@ DELIMITER ;
 -- ============================================================
 -- KIỂM TRA TRIGGERS
 -- ============================================================
-SHOW TRIGGERS FROM QuanLyDKHP;
+-- SHOW TRIGGERS FROM QuanLyDKHP;
 
 -- Test Trigger 4: Thử xóa học phần đã có SV đăng ký (phải báo lỗi)
 -- DELETE FROM HocPhan WHERE MaHP = 'HP001'; -- Sẽ báo lỗi
 
 -- Test Trigger 2: Đăng ký mới (Trigger sẽ cập nhật sĩ số tự động)
+-- 1. Xem sĩ số trước khi đăng ký:
+-- SELECT SiSoHienTai FROM HocPhan WHERE MaHP = 'HP001';
+
+-- 2. Kích hoạt Trigger bằng lệnh Insert:
 -- INSERT INTO DangKyHocPhan(MaSV, MaHP) VALUES ('SV015', 'HP001');
--- SELECT SiSoHienTai FROM HocPhan WHERE MaHP = 'HP001'; -- Tự tăng
+
+-- 3. Xem sĩ số sau khi đăng ký (sẽ tự động cộng lên 1):
+-- SELECT SiSoHienTai FROM HocPhan WHERE MaHP = 'HP001';
+
+
+-- Test Trigger 1: Ép lỗi trùng lịch (Lỗi 45002)
+-- SV001 đang học HP044 (Thứ 7 tiết 4-6). Ta ép đăng ký HP005 (cũng Thứ 7 tiết 4-6) để báo lỗi.
+-- INSERT INTO DangKyHocPhan(MaSV, MaHP) VALUES ('SV001', 'HP005');
+
 
 SELECT '6 Triggers đã tạo thành công!' AS ThongBao;

@@ -86,8 +86,9 @@ CREATE TABLE HocPhan (
                                     ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT FK_HP_GiaoVien   FOREIGN KEY (MaGV) REFERENCES GiaoVien(MaGV)
                                     ON UPDATE CASCADE ON DELETE SET NULL,
-    CONSTRAINT CHK_SiSo         CHECK (SiSoHienTai <= SiSoToiDa AND SiSoHienTai >= 0),
-    CONSTRAINT CHK_HocKy        CHECK (HocKy IN (1, 2, 3))
+    CONSTRAINT CHK_SiSo         CHECK (SiSoToiDa > 0 AND SiSoHienTai <= SiSoToiDa AND SiSoHienTai >= 0),
+    CONSTRAINT CHK_HocKy        CHECK (HocKy IN (1, 2, 3)),
+    CONSTRAINT CHK_NgayDangKy   CHECK (NgayBatDauDK IS NULL OR NgayKetThucDK IS NULL OR NgayBatDauDK <= NgayKetThucDK)
 ) ENGINE=InnoDB COMMENT='Bảng học phần (lớp học mỗi học kỳ)';
 
 -- ============================================================

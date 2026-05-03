@@ -6226,3 +6226,41 @@ INSERT INTO BangDiem (MaDK,DiemCC,DiemGiuaKy,DiemCuoiKy) VALUES
 ('2758','8.75','5.71','5.21'),
 ('2759','8.39','8.29','4.37'),
 ('2760','6.65','5.31','4.41');
+
+-- ============================================================
+-- CHUẨN HÓA DỮ LIỆU MẪU SAU KHI NẠP BULK
+-- ============================================================
+-- 1) Dọn đăng ký trùng môn đang DaDuyet: mỗi sinh viên chỉ giữ 1 lớp cho 1 môn đang học.
+--    Các dòng BangDiem liên quan sẽ tự xóa theo FK ON DELETE CASCADE.
+DROP TEMPORARY TABLE IF EXISTS tmp_DangKyHopLe;
+CREATE TEMPORARY TABLE tmp_DangKyHopLe AS
+SELECT MIN(dk.MaDK) AS MaDK
+FROM DangKyHocPhan dk
+JOIN HocPhan hp ON dk.MaHP = hp.MaHP
+WHERE dk.TrangThai = 'DaDuyet'
+GROUP BY dk.MaSV, hp.MaMH;
+
+DELETE dk
+FROM DangKyHocPhan dk
+JOIN HocPhan hp ON dk.MaHP = hp.MaHP
+LEFT JOIN tmp_DangKyHopLe keep_dk ON dk.MaDK = keep_dk.MaDK
+WHERE dk.TrangThai = 'DaDuyet'
+  AND keep_dk.MaDK IS NULL;
+
+DROP TEMPORARY TABLE IF EXISTS tmp_DangKyHopLe;
+
+-- 2) Đưa đợt đăng ký mẫu về khoảng thời gian đang mở theo ngày chạy script.
+UPDATE HocPhan
+SET NgayBatDauDK = DATE_SUB(CURDATE(), INTERVAL 7 DAY),
+    NgayKetThucDK = DATE_ADD(CURDATE(), INTERVAL 90 DAY),
+    TrangThai = 'MoDangKy';
+
+-- 3) Tính lại sĩ số từ số đăng ký DaDuyet, vì bulk insert chạy trước khi tạo trigger.
+UPDATE HocPhan hp
+LEFT JOIN (
+    SELECT MaHP, COUNT(*) AS SoLuong
+    FROM DangKyHocPhan
+    WHERE TrangThai = 'DaDuyet'
+    GROUP BY MaHP
+) dk ON hp.MaHP = dk.MaHP
+SET hp.SiSoHienTai = COALESCE(dk.SoLuong, 0);

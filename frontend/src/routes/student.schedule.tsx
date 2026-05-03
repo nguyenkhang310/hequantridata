@@ -28,15 +28,16 @@ const dayAccent: Record<string, string> = {
 function SchedulePage() {
   const { user } = useAuth();
   const [studentSchedule, setStudentSchedule] = useState<any[]>([]);
+  const authHeaders = user?.token ? { Authorization: `Bearer ${user.token}` } : {};
 
   useEffect(() => {
     if (user?.id) {
-      fetch(`http://localhost:5000/api/student/schedule/${user.id}`)
+      fetch(`http://localhost:5000/api/student/schedule/${user.id}`, { headers: authHeaders })
         .then(res => res.json())
         .then(data => setStudentSchedule(data))
         .catch(console.error);
     }
-  }, [user]);
+  }, [user?.id, user?.token]);
 
   function findClass(day: string, periodRange: string) {
     return studentSchedule.find((s) => s.day === day && s.period.startsWith(periodRange));

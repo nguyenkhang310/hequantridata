@@ -83,7 +83,7 @@ SELECT
 FROM HocPhan hp
 JOIN MonHoc mh        ON hp.MaMH = mh.MaMH
 LEFT JOIN GiaoVien gv ON hp.MaGV = gv.MaGV
-LEFT JOIN DangKyHocPhan dk ON hp.MaHP = dk.MaHP
+LEFT JOIN DangKyHocPhan dk ON hp.MaHP = dk.MaHP AND dk.TrangThai = 'DaDuyet'
 LEFT JOIN BangDiem  bd ON dk.MaDK = bd.MaDK
 GROUP BY hp.MaHP, mh.TenMH, mh.SoTinChi,
          gv.HoTen, hp.HocKy, hp.NamHoc,
@@ -102,15 +102,15 @@ SELECT
     sv.KhoaHoc,
     COUNT(bd.MaBD)                              AS TongMonDaHoc,
     SUM(mh.SoTinChi)                            AS TongTinChi,
-    ROUND(AVG(bd.DiemTB), 2)                   AS DiemTBTongThe,
-    ROUND(AVG(bd.DiemTB) * 4.0 / 10.0, 2)    AS GPA_Thang4,
+    ROUND(SUM(bd.DiemTB * mh.SoTinChi) / NULLIF(SUM(mh.SoTinChi), 0), 2) AS DiemTBTongThe,
+    ROUND((SUM(bd.DiemTB * mh.SoTinChi) / NULLIF(SUM(mh.SoTinChi), 0)) * 4.0 / 10.0, 2) AS GPA_Thang4,
     CASE
-        WHEN AVG(bd.DiemTB) * 4.0 / 10.0 >= 3.60 THEN 'Xuất sắc'
-        WHEN AVG(bd.DiemTB) * 4.0 / 10.0 >= 3.20 THEN 'Giỏi'
-        WHEN AVG(bd.DiemTB) * 4.0 / 10.0 >= 2.50 THEN 'Khá'
-        WHEN AVG(bd.DiemTB) * 4.0 / 10.0 >= 2.00 THEN 'Trung bình'
+        WHEN (SUM(bd.DiemTB * mh.SoTinChi) / NULLIF(SUM(mh.SoTinChi), 0)) * 4.0 / 10.0 >= 3.60 THEN 'Xuất sắc'
+        WHEN (SUM(bd.DiemTB * mh.SoTinChi) / NULLIF(SUM(mh.SoTinChi), 0)) * 4.0 / 10.0 >= 3.20 THEN 'Giỏi'
+        WHEN (SUM(bd.DiemTB * mh.SoTinChi) / NULLIF(SUM(mh.SoTinChi), 0)) * 4.0 / 10.0 >= 2.50 THEN 'Khá'
+        WHEN (SUM(bd.DiemTB * mh.SoTinChi) / NULLIF(SUM(mh.SoTinChi), 0)) * 4.0 / 10.0 >= 2.00 THEN 'Trung bình'
         ELSE 'Yếu'
-    END                                         AS XepLoaiHocLuc
+    END AS XepLoaiHocLuc
 FROM SinhVien sv
 LEFT JOIN DangKyHocPhan dk ON sv.MaSV = dk.MaSV AND dk.TrangThai = 'DaDuyet'
 LEFT JOIN BangDiem  bd ON dk.MaDK = bd.MaDK
@@ -142,16 +142,16 @@ ORDER BY log.ThoiGian DESC;
 -- ============================================================
 -- KIỂM TRA VIEWS
 -- ============================================================
-SELECT '--- VIEW 1: Bảng điểm tổng hợp ---' AS Info;
-SELECT * FROM vw_BangDiemTongHop WHERE MaSV = 'SV001';
+-- SELECT '--- VIEW 1: Bảng điểm tổng hợp ---' AS Info;
+-- SELECT * FROM vw_BangDiemTongHop WHERE MaSV = 'SV001';
 
-SELECT '--- VIEW 2: Lịch học tổng hợp ---' AS Info;
-SELECT * FROM vw_LichHocTongHop WHERE MaSV = 'SV001' ORDER BY Thu, TietBD;
+-- SELECT '--- VIEW 2: Lịch học tổng hợp ---' AS Info;
+-- SELECT * FROM vw_LichHocTongHop WHERE MaSV = 'SV001' ORDER BY Thu, TietBD;
 
-SELECT '--- VIEW 3: Thống kê học phần ---' AS Info;
-SELECT * FROM vw_ThongKeHocPhan;
+-- SELECT '--- VIEW 3: Thống kê học phần ---' AS Info;
+-- SELECT * FROM vw_ThongKeHocPhan;
 
-SELECT '--- VIEW 4: Xếp hạng sinh viên ---' AS Info;
-SELECT * FROM vw_XepHangSinhVien ORDER BY GPA_Thang4 DESC;
+-- SELECT '--- VIEW 4: Xếp hạng sinh viên ---' AS Info;
+-- SELECT * FROM vw_XepHangSinhVien ORDER BY GPA_Thang4 DESC;
 
 SELECT '5 Views đã tạo thành công!' AS ThongBao;

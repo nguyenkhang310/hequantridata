@@ -18,15 +18,16 @@ function gradeBadge(g: string) {
 function GradesPage() {
   const { user } = useAuth();
   const [studentGrades, setStudentGrades] = useState<any[]>([]);
+  const authHeaders = user?.token ? { Authorization: `Bearer ${user.token}` } : {};
 
   useEffect(() => {
     if (user?.id) {
-      fetch(`http://localhost:5000/api/student/grades/${user.id}`)
+      fetch(`http://localhost:5000/api/student/grades/${user.id}`, { headers: authHeaders })
         .then(res => res.json())
         .then(data => setStudentGrades(data))
         .catch(console.error);
     }
-  }, [user]);
+  }, [user?.id, user?.token]);
 
   const semesters = Array.from(new Set(studentGrades.map((g) => g.semester)));
   return (

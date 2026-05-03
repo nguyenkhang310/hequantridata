@@ -27,10 +27,11 @@ function ClassesPage() {
   const [selectedId, setSelectedId] = useState("");
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState({ cc: 0, gk: 0, ck: 0 });
+  const authHeaders = user?.token ? { Authorization: `Bearer ${user.token}` } : {};
 
   useEffect(() => {
     if (user?.id) {
-      fetch(`http://localhost:5000/api/teacher/classes/${user.id}`)
+      fetch(`http://localhost:5000/api/teacher/classes/${user.id}`, { headers: authHeaders })
         .then(res => res.json())
         .then(resData => {
           setData(resData);
@@ -38,7 +39,7 @@ function ClassesPage() {
         })
         .catch(console.error);
     }
-  }, [user]);
+  }, [user?.id, user?.token]);
 
   const cls = data.find((c) => c.id === selectedId);
 
@@ -55,7 +56,7 @@ function ClassesPage() {
     try {
       const res = await fetch("http://localhost:5000/api/teacher/grade", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ studentId: editing!.id, courseId: selectedId, ...form })
       });
       const resData = await res.json();

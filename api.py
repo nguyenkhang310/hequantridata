@@ -1,5 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import base64
+import hashlib
+import hmac
+import json
+import os
 import mysql.connector
 
 app = Flask(__name__)
@@ -14,6 +19,46 @@ DB_CONFIG = {
 
 def get_db():
     return mysql.connector.connect(**DB_CONFIG)
+
+AUTH_SECRET = os.environ.get('UTH_AUTH_SECRET', 'uth-portal-dev-secret')
+
+def _b64encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode('ascii').rstrip('=')
+
+def _b64decode(raw: str) -> bytes:
+    return base64.urlsafe_b64decode(raw + '=' * (-len(raw) % 4))
+
+def create_token(user_id: str, role: str) -> str:
+    payload = _b64encode(json.dumps({'id': user_id, 'role': role}, separators=(',', ':')).encode('utf-8'))
+    signature = hmac.new(AUTH_SECRET.encode('utf-8'), payload.encode('ascii'), hashlib.sha256).digest()
+    return f'{payload}.{_b64encode(signature)}'
+
+def get_auth_user():
+    header = request.headers.get('Authorization', '')
+    if not header.startswith('Bearer '):
+        return None
+    token = header.split(' ', 1)[1].strip()
+    try:
+        payload, signature = token.split('.', 1)
+        expected = hmac.new(AUTH_SECRET.encode('utf-8'), payload.encode('ascii'), hashlib.sha256).digest()
+        if not hmac.compare_digest(_b64decode(signature), expected):
+            return None
+        data = json.loads(_b64decode(payload).decode('utf-8'))
+        if data.get('role') not in ('student', 'teacher') or not data.get('id'):
+            return None
+        return data
+    except Exception:
+        return None
+
+def require_auth(expected_role=None, expected_id=None):
+    user = get_auth_user()
+    if not user:
+        return None, (jsonify({"success": False, "message": "Chưa đăng nhập hoặc phiên không hợp lệ"}), 401)
+    if expected_role and user.get('role') != expected_role:
+        return None, (jsonify({"success": False, "message": "Không đúng quyền truy cập"}), 403)
+    if expected_id and user.get('id') != expected_id:
+        return None, (jsonify({"success": False, "message": "Không được truy cập dữ liệu của người dùng khác"}), 403)
+    return user, None
 
 # Map Thu values from DB enum to display string
 THU_MAP = {
@@ -36,16 +81,20 @@ def get_active_year():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
-    uid = data.get('id')
+    uid = (data.get('id') or '').strip().upper()
     pwd = data.get('password')
-    role = 'SinhVien' if data.get('role') == 'student' else 'GiaoVien'
+    frontend_role = data.get('role')
+    if frontend_role not in ('student', 'teacher'):
+        return jsonify({"success": False, "message": "Vai trò không hợp lệ"}), 400
+    role = 'SinhVien' if frontend_role == 'student' else 'GiaoVien'
     db = get_db()
     cursor = db.cursor()
     try:
         result = cursor.callproc('sp_DangNhap', (uid, pwd, role, 0, '', ''))
         ok, name, msg = result[3], result[4], result[5]
         if ok == 1:
-            return jsonify({"success": True, "user": {"id": uid, "name": name, "role": data.get('role'), "faculty": "CNTT"}})
+            token = create_token(uid, frontend_role)
+            return jsonify({"success": True, "user": {"id": uid, "name": name, "role": frontend_role, "faculty": "CNTT", "token": token}})
         return jsonify({"success": False, "message": msg}), 401
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -57,14 +106,31 @@ def login():
 # ============================================================
 @app.route('/api/student/dashboard/<uid>', methods=['GET'])
 def student_dashboard(uid):
+    _, auth_error = require_auth('student', uid)
+    if auth_error:
+        return auth_error
     db = get_db()
     cursor = db.cursor()
     try:
         cursor.callproc('sp_XemBangDiem', (uid,))
         results = list(cursor.stored_results())
         gpa, standing, credits, registered = 0, 'Chưa có', 0, 0
+
+        # Consume result set 0 (chi tiết bảng điểm) — bắt buộc trước khi đọc rs tiếp theo
         if len(results) > 0:
-            registered = len(results[0].fetchall())
+            results[0].fetchall()
+
+        # Chỉ đếm đăng ký DaDuyet (không tính HuyBo)
+        cursor2 = db.cursor()
+        cursor2.execute(
+            "SELECT COUNT(*) FROM DangKyHocPhan WHERE MaSV=%s AND TrangThai='DaDuyet'",
+            (uid,)
+        )
+        r = cursor2.fetchone()
+        registered = r[0] if r else 0
+        cursor2.close()
+
+        # Lấy GPA từ result set 1
         if len(results) > 1:
             summary = results[1].fetchone()
             if summary:
@@ -79,6 +145,9 @@ def student_dashboard(uid):
 
 @app.route('/api/student/courses', methods=['GET'])
 def get_courses():
+    _, auth_error = require_auth('student')
+    if auth_error:
+        return auth_error
     db = get_db()
     cursor = db.cursor(dictionary=True)
     try:
@@ -94,7 +163,10 @@ def get_courses():
             LEFT JOIN GiaoVien gv ON hp.MaGV = gv.MaGV
             LEFT JOIN LichHoc lh ON hp.MaHP = lh.MaHP
             WHERE hp.TrangThai = 'MoDangKy'
-            GROUP BY hp.MaHP
+              AND (hp.NgayBatDauDK IS NULL OR CURDATE() >= hp.NgayBatDauDK)
+              AND (hp.NgayKetThucDK IS NULL OR CURDATE() <= hp.NgayKetThucDK)
+            GROUP BY hp.MaHP, mh.TenMH, mh.SoTinChi, gv.HoTen, hp.SiSoHienTai,
+                     hp.SiSoToiDa, hp.TrangThai, hp.HocKy, hp.NamHoc
             ORDER BY mh.TenMH
         """)
         rows = cursor.fetchall()
@@ -113,7 +185,7 @@ def get_courses():
                 "capacity": r['SiSoToiDa'],
                 "schedule": lich,
                 "semester": f"HK{r['HocKy']} {r['NamHoc']}",
-                "status": "open" if r['TrangThai'] == 'MoDangKy' else "full"
+                "status": "full" if r['SiSoHienTai'] >= r['SiSoToiDa'] else "open"
             })
         return jsonify(courses)
     except Exception as e:
@@ -123,9 +195,12 @@ def get_courses():
 
 @app.route('/api/student/register', methods=['POST'])
 def register_course():
+    user, auth_error = require_auth('student')
+    if auth_error:
+        return auth_error
     data = request.json
-    uid = data.get('studentId')
-    course_id = data.get('courseId')
+    uid = user['id']
+    course_id = (data.get('courseId') or '').strip().upper()
     db = get_db()
     cursor = db.cursor()
     try:
@@ -140,8 +215,53 @@ def register_course():
     finally:
         cursor.close(); db.close()
 
+@app.route('/api/student/unregister', methods=['POST'])
+def unregister_course():
+    user, auth_error = require_auth('student')
+    if auth_error:
+        return auth_error
+    data = request.json
+    uid = user['id']
+    course_id = (data.get('courseId') or '').strip().upper()
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        result = cursor.callproc('sp_HuyDangKyHocPhan', (uid, course_id, 0, ''))
+        ok, msg = result[2], result[3]
+        if ok == 1:
+            db.commit()
+            return jsonify({"success": True, "message": msg})
+        return jsonify({"success": False, "message": msg}), 400
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        cursor.close(); db.close()
+
+@app.route('/api/student/my-courses/<uid>', methods=['GET'])
+def get_my_courses(uid):
+    """Trả về danh sách mã học phần sinh viên đã đăng ký (DaDuyet)"""
+    _, auth_error = require_auth('student', uid)
+    if auth_error:
+        return auth_error
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "SELECT MaHP FROM DangKyHocPhan WHERE MaSV=%s AND TrangThai='DaDuyet'",
+            (uid,)
+        )
+        rows = cursor.fetchall()
+        return jsonify([r[0] for r in rows])
+    except Exception as e:
+        return jsonify([])
+    finally:
+        cursor.close(); db.close()
+
 @app.route('/api/student/schedule/<uid>', methods=['GET'])
 def student_schedule(uid):
+    _, auth_error = require_auth('student', uid)
+    if auth_error:
+        return auth_error
     db = get_db()
     cursor = db.cursor(dictionary=True)
     try:
@@ -178,6 +298,9 @@ def student_schedule(uid):
 
 @app.route('/api/student/grades/<uid>', methods=['GET'])
 def student_grades(uid):
+    _, auth_error = require_auth('student', uid)
+    if auth_error:
+        return auth_error
     db = get_db()
     cursor = db.cursor(dictionary=True)
     try:
@@ -216,6 +339,9 @@ def student_grades(uid):
 # ============================================================
 @app.route('/api/teacher/classes/<uid>', methods=['GET'])
 def get_teacher_classes(uid):
+    _, auth_error = require_auth('teacher', uid)
+    if auth_error:
+        return auth_error
     db = get_db()
     cursor = db.cursor(dictionary=True)
     try:
@@ -261,27 +387,37 @@ def get_teacher_classes(uid):
 
 @app.route('/api/teacher/grade', methods=['POST'])
 def update_grade():
+    user, auth_error = require_auth('teacher')
+    if auth_error:
+        return auth_error
     data = request.json
+    student_id = (data.get('studentId') or '').strip().upper()
+    course_id = (data.get('courseId') or '').strip().upper()
     db = get_db()
     cursor = db.cursor()
     try:
         # Find MaDK from studentId and courseId
         cursor.execute(
-            "SELECT MaDK FROM DangKyHocPhan WHERE MaSV=%s AND MaHP=%s",
-            (data['studentId'], data['courseId'])
+            "SELECT MaDK FROM DangKyHocPhan WHERE MaSV=%s AND MaHP=%s AND TrangThai='DaDuyet'",
+            (student_id, course_id)
         )
         row = cursor.fetchone()
         if not row:
-            return jsonify({"success": False, "message": "Không tìm thấy đăng ký"})
+            return jsonify({"success": False, "message": "Không tìm thấy đăng ký hợp lệ"}), 404
         madk = row[0]
-        cursor.execute(
-            "UPDATE BangDiem SET DiemCC=%s, DiemGiuaKy=%s, DiemCuoiKy=%s WHERE MaDK=%s",
-            (data['cc'], data['gk'], data['ck'], madk)
+        result = cursor.callproc(
+            'sp_CapNhatDiem',
+            (user['id'], madk, data['cc'], data['gk'], data['ck'], 0, '')
         )
-        db.commit()
-        return jsonify({"success": True})
+        ok, msg = result[5], result[6]
+        if ok == 1:
+            db.commit()
+            return jsonify({"success": True, "message": msg})
+        db.rollback()
+        return jsonify({"success": False, "message": msg}), 403
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
+        db.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
     finally:
         cursor.close(); db.close()
 

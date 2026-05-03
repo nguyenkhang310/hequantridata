@@ -1,11 +1,12 @@
 -- ============================================================
--- DEMO LỖI 1: LOST UPDATE (Mất dữ liệu cập nhật)
--- Chạy file này trước, xem kết quả từng bước
+-- DEMO LOI 1: LOST UPDATE (mat cap nhat)
+-- File nay co the chay Execute All trong mot tab.
+-- Muc tieu: minh hoa viec 2 thao tac dua tren cung gia tri cu lam mat 1 lan tang.
 -- ============================================================
+
 USE QuanLyDKHP;
 SET SQL_SAFE_UPDATES = 0;
 
--- Chuẩn bị bảng test
 DROP TABLE IF EXISTS Demo_SiSo;
 CREATE TABLE Demo_SiSo (
     MaHP VARCHAR(10) PRIMARY KEY,
@@ -14,27 +15,30 @@ CREATE TABLE Demo_SiSo (
 ) ENGINE=InnoDB;
 INSERT INTO Demo_SiSo VALUES ('HP001', 'Co So Du Lieu', 30);
 
--- ============================================================
-SELECT '1. TRUOC KHI TEST' AS Giai_Doan, MaHP, TenHP, SiSo AS 'Si_So_Hien_Tai' FROM Demo_SiSo;
+SELECT '1. TRUOC KHI TEST' AS Giai_Doan, MaHP, TenHP, SiSo AS SiSoHienTai
+FROM Demo_SiSo;
 
 -- ============================================================
--- GIẢ LẬP: Session A và B đều đọc SiSo = 30 cùng lúc
-
--- Session A đọc, tính 30+1=31, ghi
+-- PHAN A - TAO LOI
+-- Gia lap 2 session cung doc SiSo = 30, moi session deu tinh ket qua moi la 31.
+-- Ket qua dung mong doi la 32, nhung do ghi theo gia tri stale nen chi con 31.
+-- ============================================================
 START TRANSACTION;
-UPDATE Demo_SiSo SET SiSo = 31 WHERE MaHP = 'HP001'; -- A ghi 31
+UPDATE Demo_SiSo SET SiSo = 31 WHERE MaHP = 'HP001';
 COMMIT;
 
--- Session B cũng tính 30+1=31, ghi ĐÈ lên A!
 START TRANSACTION;
-UPDATE Demo_SiSo SET SiSo = 31 WHERE MaHP = 'HP001'; -- B ghi đè 31!
+UPDATE Demo_SiSo SET SiSo = 31 WHERE MaHP = 'HP001';
 COMMIT;
 
-SELECT '2. KET QUA LỖI (Lost Update)' AS Giai_Doan, MaHP, SiSo AS 'Mong_32_Nhung_Chi_Tang_1' FROM Demo_SiSo;
+SELECT '2. LOI LOST UPDATE - mong 32 nhung chi 31' AS Giai_Doan, MaHP, SiSo
+FROM Demo_SiSo;
 
 -- ============================================================
--- ✅ FIX: Dùng UPDATE nguyên tử (SET SiSo = SiSo + 1)
-UPDATE Demo_SiSo SET SiSo = 30 WHERE MaHP = 'HP001'; -- Reset
+-- PHAN B - CACH KHAC PHUC
+-- Dung update nguyen tu: SiSo = SiSo + 1.
+-- ============================================================
+UPDATE Demo_SiSo SET SiSo = 30 WHERE MaHP = 'HP001';
 
 START TRANSACTION;
 UPDATE Demo_SiSo SET SiSo = SiSo + 1 WHERE MaHP = 'HP001';
@@ -44,6 +48,7 @@ START TRANSACTION;
 UPDATE Demo_SiSo SET SiSo = SiSo + 1 WHERE MaHP = 'HP001';
 COMMIT;
 
-SELECT '3. KET QUA DUNG (Da Fix)' AS Giai_Doan, MaHP, SiSo AS 'Da_Tang_Dung_2_Lan' FROM Demo_SiSo;
+SELECT '3. DA FIX - tang dung 2 lan thanh 32' AS Giai_Doan, MaHP, SiSo
+FROM Demo_SiSo;
 
 SET SQL_SAFE_UPDATES = 1;

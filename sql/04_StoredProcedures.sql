@@ -63,23 +63,43 @@ CREATE PROCEDURE sp_DangKyHocPhan(
 )
 COMMENT 'Đăng ký học phần cho sinh viên - kiểm tra đầy đủ ràng buộc'
 BEGIN
-    DECLARE v_SiSoHT    INT;
-    DECLARE v_SiSoMax   INT;
-    DECLARE v_TrangThai VARCHAR(20);
-    DECLARE v_DaDK      INT DEFAULT 0;
-    DECLARE v_TrungLich TINYINT DEFAULT 0;
-    DECLARE v_TongTC    INT DEFAULT 0;
-    DECLARE v_MaxTC     INT DEFAULT 25; -- Giới hạn 25 tín chỉ/học kỳ
-    DECLARE v_HocKy     TINYINT;
-    DECLARE v_NamHoc    VARCHAR(9);
+    DECLARE v_SiSoHT      INT;
+    DECLARE v_SiSoMax     INT;
+    DECLARE v_TrangThai   VARCHAR(20);
+    DECLARE v_DaDK        INT DEFAULT 0;
+    DECLARE v_DaDKMonHoc  INT DEFAULT 0;  -- Kiểm tra trùng môn (khác lớp)
+    DECLARE v_TrungLich   TINYINT DEFAULT 0;
+    DECLARE v_TongTC      INT DEFAULT 0;
+    DECLARE v_MaxTC       INT DEFAULT 25; -- Giới hạn 25 tín chỉ/học kỳ
+    DECLARE v_SoTCMoi     INT DEFAULT 0;
+    DECLARE v_HocKy       TINYINT;
+    DECLARE v_NamHoc      VARCHAR(9);
+    DECLARE v_MaMH        VARCHAR(10);
+    DECLARE v_TenMH       VARCHAR(200);
+    DECLARE v_NgayBD      DATE;
+    DECLARE v_NgayKT      DATE;
+    DECLARE v_SVTonTai    INT DEFAULT 0;
 
-    -- Lấy thông tin học phần
-    SELECT SiSoHienTai, SiSoToiDa, TrangThai, HocKy, NamHoc
-    INTO   v_SiSoHT, v_SiSoMax, v_TrangThai, v_HocKy, v_NamHoc
-    FROM HocPhan WHERE MaHP = p_MaHP;
+    SELECT COUNT(*) INTO v_SVTonTai
+    FROM SinhVien
+    WHERE MaSV = p_MaSV;
+
+    -- Lấy thông tin học phần (kèm MaMH, TenMH) và khóa dòng sĩ số trong transaction hiện tại
+    SELECT hp.SiSoHienTai, hp.SiSoToiDa, hp.TrangThai, hp.HocKy, hp.NamHoc,
+           hp.MaMH, mh.TenMH, mh.SoTinChi, hp.NgayBatDauDK, hp.NgayKetThucDK
+    INTO   v_SiSoHT, v_SiSoMax, v_TrangThai, v_HocKy, v_NamHoc, v_MaMH, v_TenMH,
+           v_SoTCMoi, v_NgayBD, v_NgayKT
+    FROM HocPhan hp
+    JOIN MonHoc mh ON hp.MaMH = mh.MaMH
+    WHERE hp.MaHP = p_MaHP
+    FOR UPDATE;
 
     -- Kiểm tra học phần tồn tại
-    IF v_TrangThai IS NULL THEN
+    IF v_SVTonTai = 0 THEN
+        SET p_ThanhCong = 0;
+        SET p_ThongBao  = 'Sinh viên không tồn tại!';
+
+    ELSEIF v_TrangThai IS NULL THEN
         SET p_ThanhCong = 0;
         SET p_ThongBao  = 'Học phần không tồn tại!';
 
@@ -88,13 +108,19 @@ BEGIN
         SET p_ThanhCong = 0;
         SET p_ThongBao  = 'Học phần đã đóng đăng ký!';
 
+    -- Kiểm tra thời gian mở đăng ký
+    ELSEIF (v_NgayBD IS NOT NULL AND CURDATE() < v_NgayBD)
+        OR (v_NgayKT IS NOT NULL AND CURDATE() > v_NgayKT) THEN
+        SET p_ThanhCong = 0;
+        SET p_ThongBao  = 'Hiện không nằm trong thời gian đăng ký học phần!';
+
     -- Kiểm tra sĩ số
     ELSEIF v_SiSoHT >= v_SiSoMax THEN
         SET p_ThanhCong = 0;
         SET p_ThongBao  = CONCAT('Học phần đã đầy! (', v_SiSoHT, '/', v_SiSoMax, ')');
 
     ELSE
-        -- Kiểm tra đã đăng ký chưa
+        -- [BUG FIX] Kiểm tra đã đăng ký cùng lớp này chưa
         SELECT COUNT(*) INTO v_DaDK
         FROM DangKyHocPhan
         WHERE MaSV = p_MaSV AND MaHP = p_MaHP AND TrangThai = 'DaDuyet';
@@ -104,37 +130,53 @@ BEGIN
             SET p_ThongBao  = 'Bạn đã đăng ký học phần này rồi!';
 
         ELSE
-            -- Kiểm tra trùng lịch
-            SET v_TrungLich = f_KiemTraTrungLich(p_MaSV, p_MaHP);
+            -- Không cho đăng ký cùng một môn ở lớp khác khi bản ghi cũ vẫn đang DaDuyet
+            SELECT COUNT(*) INTO v_DaDKMonHoc
+            FROM DangKyHocPhan dk
+            JOIN HocPhan hp ON dk.MaHP = hp.MaHP
+            WHERE dk.MaSV       = p_MaSV
+              AND hp.MaMH       = v_MaMH
+              AND dk.TrangThai  = 'DaDuyet'
+              AND dk.MaHP      != p_MaHP;
 
-            IF v_TrungLich = 1 THEN
+            IF v_DaDKMonHoc > 0 THEN
                 SET p_ThanhCong = 0;
-                SET p_ThongBao  = 'Bị trùng lịch với học phần đã đăng ký!';
+                SET p_ThongBao  = CONCAT('Bạn đang học hoặc đã đăng ký môn "', v_TenMH, '" ở một lớp khác rồi!');
 
             ELSE
-                -- Kiểm tra giới hạn tín chỉ
-                SET v_TongTC = f_TongTinChiDaDangKy(p_MaSV, v_HocKy, v_NamHoc);
+                -- Kiểm tra trùng lịch
+                SET v_TrungLich = f_KiemTraTrungLich(p_MaSV, p_MaHP);
 
-                IF v_TongTC >= v_MaxTC THEN
+                IF v_TrungLich = 1 THEN
                     SET p_ThanhCong = 0;
-                    SET p_ThongBao  = CONCAT('Đã đạt giới hạn ', v_MaxTC, ' tín chỉ/học kỳ!');
+                    SET p_ThongBao  = 'Bị trùng lịch với học phần đã đăng ký!';
+
                 ELSE
-                    -- Tất cả OK → thực hiện đăng ký
-                    INSERT INTO DangKyHocPhan (MaSV, MaHP) VALUES (p_MaSV, p_MaHP);
-                    UPDATE HocPhan SET SiSoHienTai = SiSoHienTai + 1 WHERE MaHP = p_MaHP;
+                    -- Kiểm tra giới hạn tín chỉ
+                    SET v_TongTC = f_TongTinChiDaDangKy(p_MaSV, v_HocKy, v_NamHoc);
 
-                    -- Ghi log
-                    INSERT INTO LogHoatDong(MaNguoiDung, VaiTro, HanhDong, BangTacDong, MaBanGhi, GhiChu)
-                    VALUES (p_MaSV, 'SinhVien', 'DANG_KY_HP', 'DangKyHocPhan', p_MaHP,
-                            CONCAT('Đăng ký học phần ', p_MaHP, ' thành công'));
+                    IF v_TongTC + v_SoTCMoi > v_MaxTC THEN
+                        SET p_ThanhCong = 0;
+                        SET p_ThongBao  = CONCAT('Vượt giới hạn ', v_MaxTC, ' tín chỉ/học kỳ! Hiện có ',
+                                                 v_TongTC, ' TC, môn mới ', v_SoTCMoi, ' TC.');
+                    ELSE
+                        -- Tất cả OK → thực hiện đăng ký
+                        -- [BUG FIX] Xóa bản ghi đã hủy (nếu có) để tránh lỗi Duplicate Entry UQ_DangKy
+                        DELETE FROM DangKyHocPhan 
+                        WHERE MaSV = p_MaSV AND MaHP = p_MaHP AND TrangThai = 'HuyBo';
 
-                    SET p_ThanhCong = 1;
-                    SET p_ThongBao  = CONCAT('Đăng ký học phần ', p_MaHP, ' thành công!');
+                        -- NOTE: trg_AFTER_DangKy_CapNhatSiSo sẽ tự động tăng SiSoHienTai
+                        INSERT INTO DangKyHocPhan (MaSV, MaHP) VALUES (p_MaSV, p_MaHP);
+
+                        SET p_ThanhCong = 1;
+                        SET p_ThongBao  = CONCAT('Đăng ký học phần ', p_MaHP, ' thành công!');
+                    END IF;
                 END IF;
             END IF;
         END IF;
     END IF;
 END$$
+
 
 -- ============================================================
 -- SP 3: sp_HuyDangKyHocPhan
@@ -166,12 +208,8 @@ BEGIN
         SET p_ThanhCong = 0;
         SET p_ThongBao  = 'Không thể hủy môn đã hoàn thành!';
     ELSE
+        -- NOTE: trg_AFTER_HuyDangKy_CapNhatSiSo sẽ tự động giảm SiSoHienTai
         UPDATE DangKyHocPhan SET TrangThai = 'HuyBo' WHERE MaDK = v_MaDK;
-        UPDATE HocPhan SET SiSoHienTai = SiSoHienTai - 1 WHERE MaHP = p_MaHP;
-
-        INSERT INTO LogHoatDong(MaNguoiDung, VaiTro, HanhDong, BangTacDong, MaBanGhi, GhiChu)
-        VALUES (p_MaSV, 'SinhVien', 'HUY_DK_HP', 'DangKyHocPhan', p_MaHP,
-                CONCAT('Hủy đăng ký học phần ', p_MaHP));
 
         SET p_ThanhCong = 1;
         SET p_ThongBao  = 'Hủy đăng ký thành công!';
@@ -310,7 +348,8 @@ BEGIN
     SELECT hp.MaGV INTO v_MaGV_HP
     FROM DangKyHocPhan dk
     JOIN HocPhan hp ON dk.MaHP = hp.MaHP
-    WHERE dk.MaDK = p_MaDK;
+    WHERE dk.MaDK = p_MaDK
+      AND dk.TrangThai = 'DaDuyet';
 
     IF v_MaGV_HP IS NULL THEN
         SET p_ThanhCong = 0;
@@ -434,14 +473,14 @@ DELIMITER ;
 -- ============================================================
 -- KIỂM TRA STORED PROCEDURES
 -- ============================================================
-CALL sp_XemDanhSachHocPhan(1, '2025-2026');
+-- CALL sp_XemDanhSachHocPhan(1, '2025-2026');
 
-SET @ok=0; SET @msg='';
-CALL sp_DangNhap('SV001', 'sv123456', 'SinhVien', @ok, @ten, @msg);
-SELECT @ok AS ThanhCong, @ten AS HoTen, @msg AS ThongBao;
+-- SET @ok=0; SET @msg='';
+-- CALL sp_DangNhap('SV001', 'sv123456', 'SinhVien', @ok, @ten, @msg);
+-- SELECT @ok AS ThanhCong, @ten AS HoTen, @msg AS ThongBao;
 
-CALL sp_XemBangDiem('SV001');
-CALL sp_XemLichHocSinhVien('SV001', 1, '2025-2026');
-CALL sp_ThongKeSinhVienTheoHP('HP001');
+-- CALL sp_XemBangDiem('SV001');
+-- CALL sp_XemLichHocSinhVien('SV001', 1, '2025-2026');
+-- CALL sp_ThongKeSinhVienTheoHP('HP001');
 
 SELECT '10 Stored Procedures đã tạo thành công!' AS ThongBao;
